@@ -1,0 +1,547 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LED Resize Studio</title>
+<style>
+:root{--bg:#0e1117;--panel:#161b22;--panel2:#1c2330;--line:#2b3445;--txt:#e6edf3;--mut:#8b98a9;--acc:#4f9dff;--acc2:#7ee0b5;--warn:#f0b24a;--bad:#ff6b6b;--ok:#5fd38d;--r:12px}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{padding:18px 22px;border-bottom:1px solid var(--line);display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+header h1{margin:0;font-size:20px}
+header .sub{color:var(--mut)}
+.pill{margin-left:auto;padding:3px 10px;border-radius:99px;font-size:12px;border:1px solid var(--line);color:var(--mut)}
+.pill.ok{color:var(--ok);border-color:#285b3b}.pill.bad{color:var(--bad);border-color:#6b2c2c}
+.wrap{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:16px;padding:16px 22px;max-width:1400px;margin:auto}
+@media(max-width:980px){.wrap{grid-template-columns:1fr}}
+.col{display:flex;flex-direction:column;gap:14px;min-width:0}
+.sticky{position:sticky;top:12px;align-self:start}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px}
+.card h2{margin:0 0 10px;font-size:15px;display:flex;align-items:center;gap:8px}
+.card h2 .n{background:var(--acc);color:#04111f;border-radius:99px;width:22px;height:22px;display:inline-grid;place-items:center;font-size:12px;font-weight:700}
+label{display:block;color:var(--mut);font-size:12px;margin:8px 0 3px}
+input[type=text],input[type=password],input[type=number],select,textarea{width:100%;background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:7px 9px;font:inherit}
+textarea{min-height:74px;resize:vertical}
+input[type=range]{width:100%;accent-color:var(--acc)}
+.row{display:flex;gap:10px;flex-wrap:wrap}.row>*{flex:1;min-width:110px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:99px;padding:4px 11px;cursor:pointer;font:inherit;font-size:12px}
+.chip:hover{border-color:var(--acc)}.chip.on{background:#173250;border-color:var(--acc)}
+button.btn{background:var(--acc);color:#04111f;border:0;border-radius:8px;padding:8px 14px;font:inherit;font-weight:600;cursor:pointer}
+button.btn.sec{background:var(--panel2);color:var(--txt);border:1px solid var(--line)}
+button.btn:disabled{opacity:.45;cursor:not-allowed}
+button.btn.big{width:100%;padding:11px;font-size:15px;background:var(--acc2)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{background:var(--panel2);color:var(--mut);border:0;padding:6px 12px;cursor:pointer;font:inherit}
+.seg button.on{background:var(--acc);color:#04111f;font-weight:600}
+.hint{color:var(--mut);font-size:12px}
+.warn{color:var(--warn);font-size:12px}
+.sizes{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.size{display:grid;grid-template-columns:1fr auto;gap:6px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:7px 10px;cursor:pointer}
+.size.sel{border-color:var(--acc)}
+.size small{color:var(--mut)}
+.size .x{background:none;border:0;color:var(--mut);cursor:pointer;font-size:16px}
+.checks{display:flex;flex-direction:column;gap:4px;max-height:160px;overflow:auto}
+.checks label{display:flex;align-items:center;gap:8px;margin:0;color:var(--txt);font-size:13px}
+.checks input{width:auto}
+canvas#pv{width:100%;border-radius:8px;background:#0a0d12;border:1px solid var(--line);display:block}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;font-size:13px;margin-top:8px}
+.kv span:nth-child(odd){color:var(--mut)}
+.bar{height:8px;background:var(--panel2);border-radius:99px;overflow:hidden;margin-top:6px}
+.bar>i{display:block;height:100%;background:var(--ok);width:0}
+.job{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--panel2);margin-bottom:8px}
+.job .top{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.badge{padding:1px 9px;border-radius:99px;font-size:11px;font-weight:700;text-transform:uppercase}
+.b-submitted,.b-queued{background:#3a3320;color:var(--warn)}.b-running{background:#173250;color:var(--acc)}
+.b-done{background:#173a28;color:var(--ok)}.b-error,.b-cancelled{background:#4a2020;color:var(--bad)}
+.job .meta{color:var(--mut);font-size:12px;margin:4px 0}
+.job .acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.job a,.job button{font-size:12px}
+.job a.btn{text-decoration:none;display:inline-block}
+code,pre{background:#0a0d12;border:1px solid var(--line);border-radius:6px;padding:2px 6px;font-size:12px}
+pre{padding:8px;overflow:auto;max-height:240px;white-space:pre-wrap}
+details summary{cursor:pointer;color:var(--mut)}
+#toast{position:fixed;right:16px;bottom:16px;max-width:420px;background:#1b2434;border:1px solid var(--line);border-radius:10px;padding:10px 14px;display:none;z-index:9}
+#toast.show{display:block}#toast.bad{border-color:#6b2c2c}#toast.good{border-color:#285b3b}
+</style>
+</head>
+<body>
+<header>
+  <h1>🎬 LED Resize Studio</h1>
+  <span class="sub">Mở rộng video lên mọi kích thước màn LED bằng AI (chạy trên GPU Kaggle)</span>
+  <span id="conn" class="pill">chưa kết nối</span>
+</header>
+
+<div class="wrap">
+ <div class="col">
+
+  <div class="card" id="cardConn">
+    <details id="connDetails">
+      <summary><b>🔌 Kết nối GitHub</b> <span class="hint" id="connSum"></span></summary>
+      <div class="row">
+        <div><label for="repo">Repo (owner/tên-repo)</label><input type="text" id="repo" placeholder="vd: phuocthinh/led-resize"></div>
+        <div><label for="token">GitHub token (fine-grained, quyền Actions: write)</label><input type="password" id="token" placeholder="github_pat_..."></div>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button class="btn" id="btnSaveConn">Lưu &amp; kiểm tra</button>
+        <button class="btn sec" id="btnForget">Xoá token khỏi trình duyệt</button>
+      </div>
+      <p class="hint">Token chỉ lưu trong trình duyệt này (localStorage), không gửi đi đâu ngoài api.github.com. Không có token vẫn xem được danh sách job.</p>
+    </details>
+  </div>
+
+  <div class="card">
+    <h2><span class="n">1</span> Video nguồn</h2>
+    <div class="checks" id="videoList"></div>
+    <div class="row" style="margin-top:8px">
+      <div><label for="vidManual">Hoặc nhập tên file đã có trong dataset</label><input type="text" id="vidManual" placeholder="vd: fanta.mp4"></div>
+      <div style="flex:0 0 90px"><label>&nbsp;</label><button class="btn sec" id="btnVidAdd" style="width:100%">Thêm</button></div>
+    </div>
+    <div class="row">
+      <div><label for="srcW">Rộng nguồn (px, để xem trước)</label><input type="number" id="srcW" value="640"></div>
+      <div><label for="srcH">Cao nguồn (px)</label><input type="number" id="srcH" value="392"></div>
+      <div><label for="srcDur">Thời lượng (giây)</label><input type="number" id="srcDur" value="84"></div>
+      <div><label for="srcFps">fps</label><input type="number" id="srcFps" value="24"></div>
+    </div>
+    <p class="hint">Kích thước thật được đọc tự động trên Kaggle; các ô trên chỉ để xem trước và ước tính. Thêm video mới vào dataset: <code>bash runner/add_video.sh /đường/dẫn/video.mp4</code> (chạy trên máy bạn).</p>
+  </div>
+
+  <div class="card">
+    <h2><span class="n">2</span> Kích thước đầu ra</h2>
+    <div class="chips" id="presets"></div>
+    <div class="row" style="margin-top:8px">
+      <div><label for="cName">Tên (tuỳ chọn)</label><input type="text" id="cName" placeholder="vd: lobby"></div>
+      <div><label for="cW">Rộng (px)</label><input type="number" id="cW" placeholder="4128"></div>
+      <div><label for="cH">Cao (px)</label><input type="number" id="cH" placeholder="1290"></div>
+      <div style="flex:0 0 90px"><label>&nbsp;</label><button class="btn" id="btnCustom" style="width:100%">+ Thêm</button></div>
+    </div>
+    <div class="sizes" id="sizes"></div>
+    <label for="scale">Cỡ video trong khung: <b id="scaleV">100%</b></label>
+    <input type="range" id="scale" min="40" max="100" value="100">
+    <p class="hint">100% = video lớn tối đa trong khung (không kéo giãn); nhỏ hơn thì AI vẽ nhiều hơn quanh video.</p>
+  </div>
+
+  <div class="card">
+    <h2><span class="n">3</span> AI &amp; GPU</h2>
+    <div class="row">
+      <div><label>Engine</label>
+        <div class="seg" id="engineSeg"><button data-v="wan" class="on">AI (Wan VACE)</button><button data-v="blur">Làm mờ (rẻ, để thử)</button></div>
+      </div>
+      <div><label>Model</label>
+        <div class="seg" id="modelSeg"><button data-v="1.3b" class="on">1.3B</button><button data-v="14b">14B</button></div>
+      </div>
+    </div>
+    <div class="row">
+      <div><label for="gpu">GPU Kaggle</label><select id="gpu"></select></div>
+      <div><label for="dtype">Độ chính xác</label>
+        <select id="dtype"><option value="auto">Tự động (khuyến nghị)</option><option value="fp16">fp16</option><option value="bf16">bf16</option></select></div>
+    </div>
+    <input type="text" id="gpuCustom" placeholder="Nhập ID accelerator khác (vd: NvidiaTeslaA100)" style="display:none;margin-top:6px">
+    <p class="hint" id="gpuNote"></p>
+    <div class="row">
+      <div><label for="mpx">Chất lượng canvas AI: <b id="mpxV"></b></label><input type="range" id="mpx" min="0.2" max="1.2" step="0.05" value="0.5"></div>
+      <div><label for="steps">Số bước: <b id="stepsV"></b></label><input type="range" id="steps" min="8" max="50" step="1" value="25"></div>
+    </div>
+    <div class="row">
+      <div><label for="stride">Stride (1 = vẽ mọi frame, 2 = nhanh gấp đôi)</label>
+        <select id="stride"><option>1</option><option>2</option><option>3</option></select></div>
+      <div><label for="guidance">Guidance</label><input type="number" id="guidance" value="5" step="0.5"></div>
+      <div><label for="seed">Seed</label><input type="number" id="seed" value="42"></div>
+    </div>
+    <label for="prompt">Prompt mô tả cảnh (giúp AI vẽ đúng phong cách)</label>
+    <textarea id="prompt"></textarea>
+    <div class="chips" id="promptPresets" style="margin-top:6px"></div>
+    <div class="row">
+      <div><label for="testSec">Chạy thử N giây đầu (0 = cả video)</label><input type="number" id="testSec" value="2" min="0"></div>
+      <div><label for="timeout">Giới hạn thời gian (giờ, tối đa 12)</label><input type="number" id="timeout" value="11" step="0.5" min="0.2" max="12"></div>
+      <div><label for="resume">Tiếp tục từ job cũ</label><select id="resume"><option value="">(không)</option></select></div>
+    </div>
+  </div>
+ </div>
+
+ <div class="col sticky">
+  <div class="card">
+    <h2>👁 Xem trước bố cục</h2>
+    <canvas id="pv" width="640" height="260"></canvas>
+    <div class="kv" id="pvInfo"></div>
+  </div>
+
+  <div class="card">
+    <h2>⏱ Ước tính</h2>
+    <div class="row">
+      <div><label for="secChunk">Giây / chunk (đo từ lần chạy thử)</label><input type="number" id="secChunk" value="300" min="1"></div>
+      <div><label for="nWorkers">GPU chạy song song</label><input type="number" id="nWorkers" value="2" min="1" max="8"></div>
+      <div><label for="nShots">Số cảnh (ước tính)</label><input type="number" id="nShots" value="1" min="1"></div>
+      <div><label for="quota">Hạn mức giờ GPU/tuần</label><input type="number" id="quota" value="30"></div>
+    </div>
+    <div class="kv" id="est"></div>
+    <div class="bar"><i id="estBar"></i></div>
+    <p class="hint" id="estNote"></p>
+  </div>
+
+  <div class="card">
+    <button class="btn big" id="btnRun">🚀 Chạy trên Kaggle</button>
+    <div class="row" style="margin-top:8px">
+      <button class="btn sec" id="btnJson">Xem job JSON</button>
+      <button class="btn sec" id="btnDl">Tải job.json</button>
+    </div>
+    <pre id="jsonView" style="display:none"></pre>
+  </div>
+ </div>
+</div>
+
+<div class="wrap" style="grid-template-columns:1fr;padding-top:0">
+  <div class="card">
+    <h2>📋 Các job <span class="hint" id="jobsMeta"></span>
+      <span style="margin-left:auto;display:flex;gap:6px"><button class="btn sec" id="btnRefresh">Làm mới</button><button class="btn sec" id="btnSync">Đồng bộ trạng thái Kaggle</button></span></h2>
+    <div id="jobs"><p class="hint">Chưa có job nào.</p></div>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+(function(){
+"use strict";
+/* ===================== hằng số ===================== */
+var PRESETS=[
+ {name:"townhall",label:"Town Hall LED",w:4128,h:1290},
+ {name:"cafeteria",label:"Cafeteria LED",w:3784,h:774},
+ {name:"tv75",label:'TV 75"',w:3840,h:2160},
+ {name:"fullhd",label:"Full HD",w:1920,h:1080},
+ {name:"doc916",label:"Dọc 9:16",w:1080,h:1920},
+ {name:"vuong",label:"Vuông 1:1",w:1080,h:1080},
+ {name:"ultrawide",label:"Ultra-wide 21:9",w:2560,h:1080}
+];
+var GPUS=[
+ {id:"NvidiaTeslaT4",label:"T4 (16GB, thường x2)",workers:2,vram:16,note:"Phổ biến, miễn phí. Không có bf16 gốc nên dùng fp16 (có thể lỗi NaN)."},
+ {id:"NvidiaTeslaT4Highmem",label:"T4 Highmem",workers:2,vram:16,note:"Như T4 nhưng nhiều RAM hệ thống hơn."},
+ {id:"NvidiaL4",label:"L4 (24GB)",workers:1,vram:24,note:"Hỗ trợ bf16."},
+ {id:"NvidiaL4X1",label:"L4 x1 (24GB)",workers:1,vram:24,note:"Hỗ trợ bf16."},
+ {id:"NvidiaTeslaA100",label:"A100 (40/80GB)",workers:1,vram:40,note:"Nhanh, bf16. Có thể chỉ mở cho một số tài khoản/cuộc thi."},
+ {id:"NvidiaH100",label:"H100 (80GB)",workers:1,vram:80,note:"Rất nhanh, bf16. Thường bị giới hạn quyền."},
+ {id:"NvidiaRtxPro6000",label:"RTX Pro 6000 (96GB)",workers:1,vram:96,note:"VRAM lớn, bf16. Có thể bị giới hạn quyền."},
+ {id:"NvidiaTeslaP100",label:"P100 (16GB) - không khuyến nghị",workers:1,vram:16,note:"Kaggle cảnh báo: PyTorch mặc định không dùng được P100."},
+ {id:"custom",label:"Khác (nhập ID)...",workers:1,vram:16,note:"Nhập đúng ID accelerator theo tài liệu Kaggle CLI."}
+];
+var PROMPTS=[
+ {label:"Hoạt hình 3D (CIDER)",text:"Seamless wide cinematic extension of the same scene, identical lighting, color grading, depth of field and 3D rendered toy-like art style, soft golden bokeh lights on a dark background, continuous background, no text, no logos, no borders"},
+ {label:"Ornament vàng (FANTA)",text:"Seamless wide extension of an elegant golden Christmas ornament scene on pure black background, sparkling gold light particles, photorealistic, continuous background, no text, no logos, no borders"},
+ {label:"Chung chung",text:"Seamless extension of the same scene, identical lighting, color grading and art style, continuous background, no text, no logos, no borders"}
+];
+var CHUNK=81, OVERLAP=16;
+
+/* ===================== hình học (giống hệt runner/worker.py) ===================== */
+function even(x){return Math.max(2,Math.round(x/2)*2);}
+function pyRound(x){var r=Math.round(x);if(Math.abs(x%1)===0.5&&r%2!==0)r-=1;return r;} // làm tròn kiểu Python (về số chẵn)
+function evenPy(x){return Math.max(2,pyRound(x/2)*2);}
+function layout(sw,sh,W,H,scale){
+  scale=scale||1;var s=Math.min(W/sw,H/sh)*scale;
+  var cw=Math.min(evenPy(sw*s),W),ch=Math.min(evenPy(sh*s),H);
+  return {cw:cw,ch:ch,x0:Math.floor((W-cw)/2),y0:Math.floor((H-ch)/2)};
+}
+function autoGen(W,H,mpx){
+  var aspect=W/H,target=mpx*1e6,gh0=Math.floor(Math.sqrt(target/aspect)/16)*16,best=null;
+  for(var gh=Math.max(64,gh0-96);gh<gh0+112;gh+=16){
+    var gw=Math.max(64,pyRound(gh*aspect/16)*16),area=gw*gh;
+    if(area<0.6*target||area>1.5*target)continue;
+    var err=Math.abs(gw/gh-aspect)/aspect,k0=Math.round(err*1e4)/1e4,k1=Math.abs(area-target);
+    if(!best||k0<best.k0||(k0===best.k0&&k1<best.k1))best={k0:k0,k1:k1,gw:gw,gh:gh};
+  }
+  if(!best){var gh2=Math.max(64,pyRound(gh0/16)*16);return [Math.max(64,pyRound(gh2*aspect/16)*16),gh2];}
+  return [best.gw,best.gh];
+}
+function genRect(fr,W,H,gw,gh){
+  var gcw=fr.cw>=W?gw:Math.min(evenPy(fr.cw*gw/W),gw),gch=fr.ch>=H?gh:Math.min(evenPy(fr.ch*gh/H),gh);
+  return {cw:gcw,ch:gch,x0:Math.floor((gw-gcw)/2),y0:Math.floor((gh-gch)/2)};
+}
+function chunkCount(n,hasCtx,stride,chunk){
+  chunk=chunk||CHUNK;var m=stride<=1?n:Math.ceil(n/stride)+1;if(hasCtx)m+=OVERLAP;
+  return m<=chunk?1:1+Math.ceil((m-chunk)/(chunk-OVERLAP));
+}
+function slug(s){return String(s).normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\u0111/g,"d").replace(/\u0110/g,"d").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"");}
+
+/* ===================== trạng thái ===================== */
+var S={sizes:[],videos:{},selSize:0,engine:"wan",model:"1.3b",jobs:[],videoList:[],defaultBranch:"main",busy:false,timer:null};
+var $=function(id){return document.getElementById(id);};
+var LS=(function(){try{window.localStorage.setItem("t","1");window.localStorage.removeItem("t");return window.localStorage;}catch(e){var m={};return{getItem:function(k){return m[k]||null;},setItem:function(k,v){m[k]=String(v);},removeItem:function(k){delete m[k];}};}})();
+
+function toast(msg,kind){var t=$("toast");t.textContent=msg;t.className="show "+(kind||"");clearTimeout(toast._t);toast._t=setTimeout(function(){t.className="";},kind==="bad"?9000:4500);}
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
+
+/* ===================== giao diện: kích thước ===================== */
+function addSize(name,w,h){
+  w=Math.round(+w);h=Math.round(+h);
+  if(!(w>=64&&w<=16384&&h>=64&&h<=16384)){toast("Kích thước phải trong khoảng 64–16384 px","bad");return;}
+  name=slug(name||(w+"x"+h))||(w+"x"+h);
+  var base=name,i=2;while(S.sizes.some(function(s){return s.name===name;})){name=base+"-"+i++;}
+  S.sizes.push({name:name,w:w,h:h});S.selSize=S.sizes.length-1;renderSizes();update();
+}
+function renderPresets(){
+  $("presets").innerHTML=PRESETS.map(function(p,i){return '<button class="chip" data-i="'+i+'">'+esc(p.label)+' <small>'+p.w+'×'+p.h+'</small></button>';}).join("");
+  $("presets").onclick=function(e){var b=e.target.closest("button");if(!b)return;var p=PRESETS[+b.dataset.i];addSize(p.name,p.w,p.h);};
+}
+function srcSize(){return {w:Math.max(16,+$("srcW").value||640),h:Math.max(16,+$("srcH").value||392)};}
+function info(sz){
+  var src=srcSize(),sc=(+$("scale").value||100)/100,fr=layout(src.w,src.h,sz.w,sz.h,sc),g=autoGen(sz.w,sz.h,+$("mpx").value);
+  var gr=genRect(fr,sz.w,sz.h,g[0],g[1]),pass=fr.cw>=sz.w&&fr.ch>=sz.h;
+  return {fr:fr,g:g,gr:gr,pass:pass,fill:1-(fr.cw*fr.ch)/(sz.w*sz.h),tokens:(g[0]/16)*(g[1]/16)};
+}
+function renderSizes(){
+  var h=S.sizes.map(function(s,i){
+    var f=info(s);
+    return '<div class="size'+(i===S.selSize?' sel':'')+'" data-i="'+i+'"><div><b>'+esc(s.name)+'</b> '+s.w+'×'+s.h+' <small>(tỉ lệ '+(s.w/s.h).toFixed(2)+':1)</small><br><small>canvas AI '+f.g[0]+'×'+f.g[1]+' · AI vẽ '+Math.round(f.fill*100)+'% khung'+(f.pass?' · khớp tỉ lệ, không cần vẽ thêm':'')+'</small></div><button class="x" data-del="'+i+'" title="Xoá">✕</button></div>';
+  }).join("");
+  $("sizes").innerHTML=h||'<p class="hint">Chọn một kích thước có sẵn hoặc nhập kích thước tuỳ ý.</p>';
+}
+$("sizes").addEventListener("click",function(e){
+  var d=e.target.closest("[data-del]");
+  if(d){S.sizes.splice(+d.dataset.del,1);S.selSize=Math.max(0,Math.min(S.selSize,S.sizes.length-1));renderSizes();update();return;}
+  var z=e.target.closest(".size");if(z){S.selSize=+z.dataset.i;renderSizes();update();}
+});
+
+/* ===================== xem trước ===================== */
+function drawPreview(){
+  var cv=$("pv"),ctx=cv.getContext&&cv.getContext("2d");
+  var sz=S.sizes[S.selSize];
+  var box=$("pvInfo");
+  if(!sz){box.innerHTML='<span>Chưa chọn kích thước</span><span></span>';if(ctx){ctx.clearRect(0,0,cv.width,cv.height);}return;}
+  var f=info(sz);
+  var dpr=window.devicePixelRatio||1,cssW=cv.clientWidth||640,maxH=260;
+  var ar=sz.w/sz.h,cw=cssW,chh=cssW/ar;if(chh>maxH){chh=maxH;cw=maxH*ar;}
+  cv.width=Math.round(cssW*dpr);cv.height=Math.round(maxH*dpr);
+  if(ctx){
+    ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,cssW,maxH);
+    var ox=(cssW-cw)/2,oy=(maxH-chh)/2,k=cw/sz.w;
+    ctx.fillStyle="#1d2b44";ctx.fillRect(ox,oy,cw,chh);
+    ctx.save();ctx.beginPath();ctx.rect(ox,oy,cw,chh);ctx.clip();
+    ctx.strokeStyle="rgba(79,157,255,.35)";ctx.lineWidth=1;
+    for(var i=-chh;i<cw;i+=9){ctx.beginPath();ctx.moveTo(ox+i,oy+chh);ctx.lineTo(ox+i+chh,oy);ctx.stroke();}
+    ctx.restore();
+    ctx.fillStyle="#2e7d5b";ctx.fillRect(ox+f.fr.x0*k,oy+f.fr.y0*k,f.fr.cw*k,f.fr.ch*k);
+    ctx.strokeStyle="#7ee0b5";ctx.lineWidth=2;ctx.strokeRect(ox+f.fr.x0*k,oy+f.fr.y0*k,f.fr.cw*k,f.fr.ch*k);
+    ctx.fillStyle="#e6edf3";ctx.font="12px system-ui";ctx.textAlign="center";
+    ctx.fillText("video nguồn "+f.fr.cw+"×"+f.fr.ch,ox+(f.fr.x0+f.fr.cw/2)*k,oy+(f.fr.y0+f.fr.ch/2)*k);
+    if(!f.pass){ctx.fillStyle="#8fb8ff";ctx.fillText("AI vẽ thêm",ox+cw/2,oy+14);}
+    ctx.strokeStyle="#4f9dff";ctx.lineWidth=1;ctx.strokeRect(ox,oy,cw,chh);
+  }
+  box.innerHTML=kv([["Đầu ra",sz.w+"×"+sz.h],["Video trong khung",f.fr.cw+"×"+f.fr.ch+" tại ("+f.fr.x0+", "+f.fr.y0+")"],["Canvas AI",f.g[0]+"×"+f.g[1]+" ("+(f.g[0]*f.g[1]/1e6).toFixed(2)+" MP)"],["Token / frame",String(f.tokens)],["Vùng AI vẽ",Math.round(f.fill*100)+"% khung"]]);
+}
+function kv(a){return a.map(function(r){return "<span>"+esc(r[0])+"</span><span>"+esc(r[1])+"</span>";}).join("");}
+
+/* ===================== GPU / engine ===================== */
+function gpuObj(){var id=$("gpu").value;return GPUS.filter(function(g){return g.id===id;})[0]||GPUS[0];}
+function accelerator(){var g=gpuObj();return g.id==="custom"?($("gpuCustom").value.trim()||"NvidiaTeslaT4"):g.id;}
+function renderGpu(){
+  $("gpu").innerHTML=GPUS.map(function(g){return '<option value="'+g.id+'">'+esc(g.label)+'</option>';}).join("");
+  PROMPTS.forEach(function(){});
+  $("promptPresets").innerHTML=PROMPTS.map(function(p,i){return '<button class="chip" data-p="'+i+'">'+esc(p.label)+'</button>';}).join("");
+  $("promptPresets").onclick=function(e){var b=e.target.closest("button");if(b){$("prompt").value=PROMPTS[+b.dataset.p].text;update();}};
+}
+function seg(id,key){
+  $(id).addEventListener("click",function(e){var b=e.target.closest("button");if(!b)return;S[key]=b.dataset.v;
+    Array.prototype.forEach.call($(id).children,function(c){c.classList.toggle("on",c===b);});update();});
+}
+function setSeg(id,key,val){S[key]=val;Array.prototype.forEach.call($(id).children,function(c){c.classList.toggle("on",c.dataset.v===val);});}
+
+/* ===================== ước tính ===================== */
+function selectedVideos(){return Object.keys(S.videos).filter(function(k){return S.videos[k];});}
+function estimate(){
+  var test=+$("testSec").value||0,dur=+$("srcDur").value||0,fps=+$("srcFps").value||24;
+  var secs=test>0?Math.min(test,dur||test):dur,frames=Math.ceil(secs*fps),shots=Math.max(1,+$("nShots").value||1);
+  var stride=+$("stride").value||1,vids=Math.max(1,selectedVideos().length),per=0;
+  S.sizes.forEach(function(s){var f=info(s);if(f.pass)return;per+=shots*chunkCount(Math.ceil(frames/shots),false,stride,CHUNK);});
+  var chunks=per*vids,sec=+$("secChunk").value||0,w=Math.max(1,+$("nWorkers").value||1);
+  var wall=chunks*sec/w/3600,gpuh=wall*(S.engine==="wan"?1:0),quota=+$("quota").value||30;
+  return {frames:frames,chunks:chunks,wallH:wall,quotaPct:quota?wall/quota:0,quota:quota};
+}
+function renderEstimate(){
+  var e=estimate();
+  $("est").innerHTML=kv([["Số frame / video",String(e.frames)],["Tổng chunk (ước tính)",String(e.chunks)],["Thời gian chạy",e.wallH<1?Math.round(e.wallH*60)+" phút":e.wallH.toFixed(1)+" giờ"],["So với hạn mức tuần",Math.round(e.quotaPct*100)+"% của "+e.quota+" giờ"]]);
+  var b=$("estBar");b.style.width=Math.min(100,e.quotaPct*100)+"%";b.style.background=e.quotaPct>1?"var(--bad)":e.quotaPct>.6?"var(--warn)":"var(--ok)";
+  var notes=[];
+  if(e.quotaPct>1)notes.push("Vượt hạn mức GPU tuần: giảm stride/số bước/chất lượng, hoặc chia thành nhiều job.");
+  if(S.engine==="wan"&&!(+$("testSec").value>0))notes.push("Đang chạy cả video. Nên chạy thử vài giây trước để đo giây/chunk.");
+  if(S.model==="14b"&&gpuObj().vram<40)notes.push("Model 14B cần GPU từ ~40GB VRAM; GPU đã chọn có thể không đủ.");
+  if(gpuObj().id==="NvidiaTeslaT4"&&$("dtype").value==="bf16")notes.push("T4 không có bf16 gốc: bf16 sẽ chạy bằng giả lập (rất chậm).");
+  $("estNote").innerHTML=notes.map(function(n){return '<span class="warn">⚠ '+esc(n)+'</span>';}).join("<br>")||"Số chunk là ước tính; con số thật in ra ở bước 'prepare' trong log Kaggle.";
+}
+
+/* ===================== job ===================== */
+function newId(){var d=new Date(),p=function(n){return String(n).padStart(2,"0");};
+  return "j"+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+"-"+p(d.getHours())+p(d.getMinutes())+p(d.getSeconds())+Math.random().toString(36).slice(2,4);}
+function buildJob(){
+  var vids=selectedVideos();
+  var dsFull=(S.dataset||"").split("/")[1]||"led-videos";
+  var job={
+    id:newId(),label:(vids.join("+")||"job")+" → "+S.sizes.map(function(s){return s.w+"x"+s.h;}).join(", "),
+    videos:vids,sizes:S.sizes.map(function(s){return {name:s.name,w:s.w,h:s.h};}),
+    engine:S.engine,model:S.model,dtype:$("dtype").value,accelerator:accelerator(),
+    steps:+$("steps").value,stride:+$("stride").value,gen_mpx:+$("mpx").value,scale:(+$("scale").value||100)/100,
+    guidance:+$("guidance").value||5,seed:+$("seed").value||0,chunk:CHUNK,prompt:$("prompt").value.trim(),
+    test_seconds:Math.max(0,+$("testSec").value||0),timeout_h:Math.min(12,Math.max(0.2,+$("timeout").value||11)),
+    resume_from:$("resume").value||"",dataset:dsFull
+  };
+  return job;
+}
+function validate(job){
+  if(!job.videos.length)return "Chọn ít nhất một video.";
+  if(!job.sizes.length)return "Thêm ít nhất một kích thước đầu ra.";
+  if(job.engine==="wan"&&!job.accelerator)return "Chọn GPU.";
+  return "";
+}
+
+/* ===================== GitHub API ===================== */
+function conn(){return {repo:($("repo").value||"").trim(),token:($("token").value||"").trim()};}
+function gh(path,opts){
+  var c=conn();opts=opts||{};opts.headers=Object.assign({"Accept":"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28"},opts.headers||{});
+  if(c.token)opts.headers.Authorization="Bearer "+c.token;
+  return fetch("https://api.github.com/repos/"+c.repo+path,opts);
+}
+function setConn(state,msg){var p=$("conn");p.className="pill "+(state||"");p.textContent=msg;}
+function checkConn(){
+  var c=conn();if(!c.repo){setConn("","chưa kết nối");return Promise.resolve(false);}
+  return gh("").then(function(r){
+    if(r.ok)return r.json().then(function(j){S.defaultBranch=j.default_branch||"main";S.canPush=!!(j.permissions&&(j.permissions.push||j.permissions.admin));
+      setConn(c.token?"ok":"","repo "+c.repo+(c.token?" ✓":" (chỉ xem)"));$("connSum").textContent="— "+c.repo;return true;});
+    setConn("bad","lỗi "+r.status);toast(r.status===404?"Không thấy repo (sai tên, hoặc token không có quyền với repo này).":"GitHub trả về lỗi "+r.status,"bad");return false;
+  }).catch(function(e){setConn("bad","không kết nối được");toast("Lỗi mạng: "+e.message,"bad");return false;});
+}
+function readJson(path,fallbackRel){
+  var c=conn();
+  if(c.repo&&c.token){
+    return gh("/contents/"+path+"?ref="+encodeURIComponent(S.defaultBranch),{headers:{"Accept":"application/vnd.github.raw+json"},cache:"no-store"})
+      .then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.json();});
+  }
+  return fetch(fallbackRel+"?t="+Date.now(),{cache:"no-store"}).then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.json();});
+}
+function loadVideos(){
+  return readJson("docs/data/videos.json","data/videos.json").then(function(j){
+    S.dataset=j.dataset||"";S.videoList=(j.videos||[]);renderVideos();
+  }).catch(function(){renderVideos();});
+}
+function renderVideos(){
+  var names=S.videoList.map(function(v){return v.name;});Object.keys(S.videos).forEach(function(k){if(names.indexOf(k)<0)names.push(k);});
+  $("videoList").innerHTML=names.map(function(n){
+    var meta=S.videoList.filter(function(v){return v.name===n;})[0];
+    return '<label><input type="checkbox" data-v="'+esc(n)+'"'+(S.videos[n]?" checked":"")+'> '+esc(n)+(meta?' <span class="hint">'+esc(meta.size)+'</span>':'')+'</label>';
+  }).join("")||'<p class="hint">Chưa thấy video nào trong dataset (hoặc chưa đồng bộ). Thêm video bằng script add_video.sh rồi bấm "Đồng bộ trạng thái Kaggle", hoặc nhập tên file bên dưới.</p>';
+}
+$("videoList").addEventListener("change",function(e){var i=e.target.closest("input");if(i){S.videos[i.dataset.v]=i.checked;update();}});
+$("btnVidAdd").onclick=function(){var n=$("vidManual").value.trim();if(!n)return;S.videos[n]=true;$("vidManual").value="";renderVideos();update();};
+
+function loadJobs(){
+  return readJson("docs/data/jobs.json","data/jobs.json").then(function(j){S.jobs=Array.isArray(j)?j:[];renderJobs();})
+    .catch(function(){renderJobs();});
+}
+function fmt(t){return t?String(t).replace("T"," ").replace("Z"," UTC"):"";}
+function renderJobs(){
+  var act=S.jobs.some(function(j){return ["submitted","queued","running"].indexOf(j.status)>=0;});
+  $("jobsMeta").textContent=S.jobs.length?("("+S.jobs.length+(act?", đang chạy — tự làm mới mỗi 30 giây":"")+")"):"";
+  $("resume").innerHTML='<option value="">(không)</option>'+S.jobs.filter(function(j){return j.kernel;}).map(function(j){return '<option value="'+esc(j.id)+'">'+esc(j.id)+' — '+esc(j.status)+'</option>';}).join("");
+  $("jobs").innerHTML=S.jobs.length?S.jobs.map(function(j){
+    var sizes=(j.sizes||[]).map(function(s){return s.w+"×"+s.h;}).join(", ");
+    var h='<div class="job"><div class="top"><b>'+esc(j.id)+'</b><span class="badge b-'+esc(j.status)+'">'+esc(j.status)+'</span><span class="hint">'+esc(j.label||"")+'</span></div>';
+    h+='<div class="meta">'+esc(sizes)+' · '+esc(j.engine||"")+' '+esc(j.model||"")+' · '+esc(j.accelerator||"")+' · bước '+esc(j.steps)+' · stride '+esc(j.stride)+(j.test_seconds?(' · thử '+j.test_seconds+'s'):'')+'<br>gửi '+esc(fmt(j.submitted_at))+(j.finished_at?(' · xong '+esc(fmt(j.finished_at))):'')+'</div>';
+    h+='<div class="acts">';
+    if(j.kernel_url)h+='<a class="btn sec" target="_blank" rel="noopener" href="'+esc(j.kernel_url)+'">Mở trên Kaggle</a>';
+    if(j.run_url)h+='<a class="btn sec" target="_blank" rel="noopener" href="'+esc(j.run_url)+'">Log GitHub</a>';
+    if(j.output_cmd)h+='<button class="btn" data-copy="'+esc(j.output_cmd)+'">Sao chép lệnh tải kết quả</button>';
+    h+='<button class="btn sec" data-reuse="'+esc(j.id)+'">Dùng lại cài đặt</button></div>';
+    if(j.status==="done")h+='<div class="hint" style="margin-top:6px">Kết quả nằm riêng tư trên Kaggle. Dán lệnh trên vào Terminal để tải về <code>~/Downloads/led_out</code>.</div>';
+    if(j.error_tail)h+='<details style="margin-top:6px"><summary>Chi tiết lỗi</summary><pre>'+esc(j.error_tail)+'</pre></details>';
+    return h+'</div>';
+  }).join(""):'<p class="hint">Chưa có job nào.</p>';
+}
+$("jobs").addEventListener("click",function(e){
+  var c=e.target.closest("[data-copy]");
+  if(c){var t=c.dataset.copy;(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(function(){toast("Đã sao chép lệnh","good");},function(){window.prompt("Sao chép lệnh:",t);});return;}
+  var r=e.target.closest("[data-reuse]");
+  if(r){var j=S.jobs.filter(function(x){return x.id===r.dataset.reuse;})[0];if(j){applyJob(j);toast("Đã nạp cài đặt của "+j.id,"good");window.scrollTo(0,0);}}
+});
+function applyJob(j){
+  S.videos={};(j.videos||[]).forEach(function(v){S.videos[v]=true;});renderVideos();
+  S.sizes=(j.sizes||[]).map(function(s){return {name:s.name,w:s.w,h:s.h};});S.selSize=0;renderSizes();
+  if(j.engine)setSeg("engineSeg","engine",j.engine);if(j.model)setSeg("modelSeg","model",j.model);
+  var g=GPUS.filter(function(x){return x.id===j.accelerator;})[0];if(g){$("gpu").value=g.id;}else if(j.accelerator&&j.accelerator!=="CPU"){$("gpu").value="custom";$("gpuCustom").value=j.accelerator;}
+  if(j.steps)$("steps").value=j.steps;if(j.stride)$("stride").value=String(j.stride);if(j.gen_mpx)$("mpx").value=j.gen_mpx;
+  if(j.scale)$("scale").value=Math.round(j.scale*100);$("testSec").value=j.test_seconds||0;update();
+}
+
+function dispatch(workflow,inputs){
+  var c=conn();
+  return gh("/actions/workflows/"+workflow+"/dispatches",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({ref:S.defaultBranch,inputs:inputs||{}})});
+}
+function explain(status){
+  return {401:"Token không hợp lệ hoặc hết hạn.",403:"Token thiếu quyền. Cần fine-grained token cho repo này với 'Actions: Read and write' và 'Contents: Read-only'.",404:"Không thấy workflow hoặc repo. Kiểm tra tên repo, và workflow submit.yml đã có trong nhánh mặc định chưa.",422:"GitHub từ chối đầu vào (nhánh sai hoặc JSON quá dài)."}[status]||("GitHub trả về lỗi "+status);
+}
+$("btnRun").onclick=function(){
+  var c=conn();if(!c.repo||!c.token){$("connDetails").open=true;toast("Cần nhập repo và GitHub token để chạy job.","bad");return;}
+  var job=buildJob(),err=validate(job);if(err){toast(err,"bad");return;}
+  var txt=JSON.stringify(job);if(txt.length>60000){toast("Job quá dài.","bad");return;}
+  $("btnRun").disabled=true;
+  dispatch("submit.yml",{job:txt}).then(function(r){
+    if(r.status===204){toast("Đã gửi job "+job.id+". Khoảng 1–2 phút nữa sẽ hiện trong danh sách.","good");pollSoon();}
+    else r.text().then(function(t){toast(explain(r.status)+" "+(t||"").slice(0,160),"bad");});
+  }).catch(function(e){toast("Lỗi mạng: "+e.message,"bad");}).then(function(){$("btnRun").disabled=false;});
+};
+$("btnSync").onclick=function(){
+  var c=conn();if(!c.repo||!c.token){toast("Cần token để đồng bộ.","bad");return;}
+  dispatch("poll.yml").then(function(r){if(r.status===204){toast("Đang đồng bộ, làm mới sau ~1 phút.","good");setTimeout(refreshAll,60000);}else toast(explain(r.status),"bad");});
+};
+$("btnRefresh").onclick=refreshAll;
+function refreshAll(){return Promise.all([loadJobs(),loadVideos()]);}
+function pollSoon(){var n=0;clearInterval(S.fast);S.fast=setInterval(function(){loadJobs();if(++n>12)clearInterval(S.fast);},15000);}
+
+/* ===================== lưu/khôi phục cài đặt ===================== */
+var FIELDS=["srcW","srcH","srcDur","srcFps","scale","mpx","steps","stride","guidance","seed","prompt","testSec","timeout","secChunk","nWorkers","nShots","quota","dtype","gpuCustom"];
+function saveSettings(){
+  var o={};FIELDS.forEach(function(f){o[f]=$(f).value;});o.gpu=$("gpu").value;o.engine=S.engine;o.model=S.model;o.sizes=S.sizes;
+  LS.setItem("led.settings",JSON.stringify(o));
+}
+function loadSettings(){
+  var o;try{o=JSON.parse(LS.getItem("led.settings")||"null");}catch(e){o=null;}
+  if(!o)return false;
+  FIELDS.forEach(function(f){if(o[f]!=null)$(f).value=o[f];});if(o.gpu)$("gpu").value=o.gpu;
+  if(o.engine)setSeg("engineSeg","engine",o.engine);if(o.model)setSeg("modelSeg","model",o.model);
+  if(Array.isArray(o.sizes)){S.sizes=o.sizes;}
+  return true;
+}
+
+/* ===================== cập nhật chung ===================== */
+function update(){
+  $("scaleV").textContent=$("scale").value+"%";$("mpxV").textContent=(+$("mpx").value).toFixed(2)+" MP";$("stepsV").textContent=$("steps").value;
+  var g=gpuObj();$("gpuNote").textContent=g.note+" (Danh sách theo tài liệu Kaggle CLI 02/2026; tài khoản của bạn có thể không có quyền với một số loại.)";
+  $("gpuCustom").style.display=g.id==="custom"?"block":"none";
+  if(!update._w||update._gpu!==g.id){update._gpu=g.id;if(update._w)$("nWorkers").value=g.workers;update._w=true;}
+  $("modelSeg").style.opacity=S.engine==="wan"?1:.4;
+  renderSizes();drawPreview();renderEstimate();saveSettings();
+}
+FIELDS.concat(["gpu"]).forEach(function(f){var el=$(f);el.addEventListener("input",update);el.addEventListener("change",update);});
+seg("engineSeg","engine");seg("modelSeg","model");
+$("btnCustom").onclick=function(){addSize($("cName").value,$("cW").value,$("cH").value);$("cName").value=$("cW").value=$("cH").value="";};
+$("btnJson").onclick=function(){var v=$("jsonView");v.style.display=v.style.display==="none"?"block":"none";v.textContent=JSON.stringify(buildJob(),null,2);};
+$("btnDl").onclick=function(){var b=new Blob([JSON.stringify(buildJob(),null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="job.json";a.click();};
+$("btnSaveConn").onclick=function(){var c=conn();LS.setItem("led.repo",c.repo);if(c.token)LS.setItem("led.token",c.token);checkConn().then(function(ok){if(ok)refreshAll();});};
+$("btnForget").onclick=function(){LS.removeItem("led.token");$("token").value="";setConn("","đã xoá token");};
+window.addEventListener("resize",drawPreview);
+
+/* ===================== khởi động ===================== */
+function init(){
+  renderPresets();renderGpu();
+  var host=location.hostname||"",m=host.match(/^([^.]+)\.github\.io$/),guess="";
+  if(m){var seg1=(location.pathname.split("/")[1]||"");guess=m[1]+"/"+(seg1||m[1]+".github.io");}
+  $("repo").value=LS.getItem("led.repo")||guess;$("token").value=LS.getItem("led.token")||"";
+  if(!loadSettings()){$("prompt").value=PROMPTS[0].text;addSize("townhall",4128,1290);}
+  else{if(!$("prompt").value)$("prompt").value=PROMPTS[0].text;renderSizes();}
+  if(!($("repo").value&&$("token").value))$("connDetails").open=true;
+  update();
+  checkConn().then(function(){return refreshAll();});
+  S.timer=setInterval(function(){if(S.jobs.some(function(j){return ["submitted","queued","running"].indexOf(j.status)>=0;}))loadJobs();},30000);
+}
+window.LED={layout:layout,autoGen:autoGen,genRect:genRect,chunkCount:chunkCount,buildJob:buildJob,estimate:estimate,state:S,slug:slug,addSize:addSize,update:update};
+init();
+})();
+</script>
+</body>
+</html>
