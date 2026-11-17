@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import jobs_lib as JL
+import preview as PV
 
 ACTIVE = {"submitted", "queued", "running"}
 MAP = {"QUEUED": "queued", "RUNNING": "running", "COMPLETE": "done", "ERROR": "error", "CANCEL_REQUESTED": "cancelled",
@@ -39,6 +40,16 @@ def error_tail(kernel):
     return ""
 
 
+def make_previews(job):
+    """Tải kết quả từ Kaggle, dựng bản xem thử nhỏ cho trang web. Lỗi ở đây không được làm hỏng việc cập nhật trạng thái."""
+    with tempfile.TemporaryDirectory() as d:
+        rc, out = kaggle("kernels", "output", job["kernel"], "-p", d)
+        if rc != 0:
+            print("không tải được output để dựng preview:", out.strip()[:200])
+            return []
+        return PV.build_previews(job["id"], d, os.path.join("docs", "data", "previews"))
+
+
 def sync_jobs():
     jobs = JL.load(JL.JOBS, [])
     changed = False
@@ -56,9 +67,16 @@ def sync_jobs():
             j["finished_at"] = now()
         if st == "done":
             j["output_cmd"] = f'kaggle kernels output {j["kernel"]} -p ~/Downloads/led_out'
+            try:
+                pv = make_previews(j)
+                if pv:
+                    j["previews"] = pv
+            except Exception as e:  # noqa
+                print("preview thất bại:", e)
         if st == "error":
             j["error_tail"] = error_tail(j["kernel"])
     if changed:
+        PV.prune(jobs, os.path.join("docs", "data", "previews"))
         JL.save(JL.JOBS, jobs)
 
 
