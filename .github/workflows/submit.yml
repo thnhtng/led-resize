@@ -1,0 +1,59 @@
+name: submit
+
+on:
+  workflow_dispatch:
+    inputs:
+      job:
+        description: "Job JSON (do trang web tạo)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: led-jobs
+  cancel-in-progress: false
+
+jobs:
+  submit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Cài Kaggle CLI
+        run: pip install -q -U kaggle
+
+      - name: Kaggle auth
+        env:
+          KT: ${{ secrets.KAGGLE_API_TOKEN }}
+          KK: ${{ secrets.KAGGLE_KEY }}
+          KU: ${{ secrets.KAGGLE_USERNAME }}
+        run: |
+          echo "KAGGLE_USERNAME=$KU" >> "$GITHUB_ENV"
+          if [ -n "$KT" ]; then echo "KAGGLE_API_TOKEN=$KT" >> "$GITHUB_ENV"; fi
+          if [ -n "$KK" ]; then echo "KAGGLE_KEY=$KK" >> "$GITHUB_ENV"; fi
+
+      - name: Đẩy job lên Kaggle
+        env:
+          JOB_JSON: ${{ inputs.job }}
+        run: python runner/submit.py
+
+      - name: Lưu trạng thái (jobs.json)
+        if: always()
+        run: |
+          git config user.name "led-resize-bot"
+          git config user.email "led-resize-bot@users.noreply.github.com"
+          git add docs/data
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -q -m "jobs: cập nhật"
+          for i in 1 2 3 4 5; do
+            if git pull --rebase -q && git push -q; then exit 0; fi
+            sleep 3
+          done
+          exit 1

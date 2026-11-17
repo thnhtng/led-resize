@@ -1,0 +1,57 @@
+name: poll
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: led-jobs
+  cancel-in-progress: false
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Cài Kaggle CLI
+        run: pip install -q -U kaggle
+
+      - name: Kaggle auth
+        env:
+          KT: ${{ secrets.KAGGLE_API_TOKEN }}
+          KK: ${{ secrets.KAGGLE_KEY }}
+          KU: ${{ secrets.KAGGLE_USERNAME }}
+        run: |
+          echo "KAGGLE_USERNAME=$KU" >> "$GITHUB_ENV"
+          if [ -n "$KT" ]; then echo "KAGGLE_API_TOKEN=$KT" >> "$GITHUB_ENV"; fi
+          if [ -n "$KK" ]; then echo "KAGGLE_KEY=$KK" >> "$GITHUB_ENV"; fi
+
+      - name: Cập nhật trạng thái job và danh sách video
+        env:
+          VIDEO_DATASET: ${{ vars.VIDEO_DATASET }}
+        run: |
+          if [ -z "$VIDEO_DATASET" ]; then export VIDEO_DATASET=led-videos; fi
+          python runner/poll.py
+
+      - name: Lưu thay đổi
+        run: |
+          git config user.name "led-resize-bot"
+          git config user.email "led-resize-bot@users.noreply.github.com"
+          git add docs/data
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -q -m "poll: cập nhật trạng thái"
+          for i in 1 2 3 4 5; do
+            if git pull --rebase -q && git push -q; then exit 0; fi
+            sleep 3
+          done
+          exit 1
