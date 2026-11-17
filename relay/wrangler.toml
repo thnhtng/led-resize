@@ -1,0 +1,10 @@
+name = "size-washer-relay"
+main = "worker.js"
+compatibility_date = "2024-11-01"
+
+[vars]
+GH_REPO = "OWNER/REPO"                      # repo chứa workflow submit.yml / poll.yml
+ALLOWED_ORIGINS = "https://OWNER.github.io" # trang web được phép gọi trạm (nhiều giá trị: ngăn cách bằng dấu phẩy)
+DEFAULT_BRANCH = "main"
+MAX_JOBS_PER_HOUR = "6"                     # mỗi địa chỉ IP
+# Bí mật (KHÔNG ghi ở đây):  npx wrangler secret put GH_TOKEN

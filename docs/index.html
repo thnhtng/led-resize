@@ -2,546 +2,571 @@
 <html lang="vi">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>LED Resize Studio</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#05070b">
+<title>size-washer</title>
+<meta name="description" content="Drop a video into the washing machine and let AI resize it for any LED display.">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="alternate icon" href="favicon.ico">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@300..800&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<script type="importmap">
+{"imports":{"three":"./vendor/three.module.min.js","three/addons/":"./vendor/addons/"}}
+</script>
 <style>
-:root{--bg:#0e1117;--panel:#161b22;--panel2:#1c2330;--line:#2b3445;--txt:#e6edf3;--mut:#8b98a9;--acc:#4f9dff;--acc2:#7ee0b5;--warn:#f0b24a;--bad:#ff6b6b;--ok:#5fd38d;--r:12px}
+:root{
+  --bg:#05070b;--card:#0d1016;--card2:#151922;--line:#262c38;--txt:#eef2f8;--mut:#93a0b4;
+  --blue:#3a86f0;--mint:#7dffc4;--amber:#ffc857;--red:#ff6b7a;
+  --mono:"Geist Mono","Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --hdr:58px;--padx:max(clamp(12px,2.2vw,32px),env(safe-area-inset-left));--padr:max(clamp(12px,2.2vw,32px),env(safe-area-inset-right));
+  --sb:env(safe-area-inset-bottom,0px);
+}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--txt);font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-header{padding:18px 22px;border-bottom:1px solid var(--line);display:flex;gap:14px;align-items:center;flex-wrap:wrap}
-header h1{margin:0;font-size:20px}
-header .sub{color:var(--mut)}
-.pill{margin-left:auto;padding:3px 10px;border-radius:99px;font-size:12px;border:1px solid var(--line);color:var(--mut)}
-.pill.ok{color:var(--ok);border-color:#285b3b}.pill.bad{color:var(--bad);border-color:#6b2c2c}
-.wrap{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:16px;padding:16px 22px;max-width:1400px;margin:auto}
-@media(max-width:980px){.wrap{grid-template-columns:1fr}}
-.col{display:flex;flex-direction:column;gap:14px;min-width:0}
-.sticky{position:sticky;top:12px;align-self:start}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px}
-.card h2{margin:0 0 10px;font-size:15px;display:flex;align-items:center;gap:8px}
-.card h2 .n{background:var(--acc);color:#04111f;border-radius:99px;width:22px;height:22px;display:inline-grid;place-items:center;font-size:12px;font-weight:700}
-label{display:block;color:var(--mut);font-size:12px;margin:8px 0 3px}
-input[type=text],input[type=password],input[type=number],select,textarea{width:100%;background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:7px 9px;font:inherit}
-textarea{min-height:74px;resize:vertical}
-input[type=range]{width:100%;accent-color:var(--acc)}
-.row{display:flex;gap:10px;flex-wrap:wrap}.row>*{flex:1;min-width:110px}
-.chips{display:flex;flex-wrap:wrap;gap:6px}
-.chip{background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:99px;padding:4px 11px;cursor:pointer;font:inherit;font-size:12px}
-.chip:hover{border-color:var(--acc)}.chip.on{background:#173250;border-color:var(--acc)}
-button.btn{background:var(--acc);color:#04111f;border:0;border-radius:8px;padding:8px 14px;font:inherit;font-weight:600;cursor:pointer}
-button.btn.sec{background:var(--panel2);color:var(--txt);border:1px solid var(--line)}
-button.btn:disabled{opacity:.45;cursor:not-allowed}
-button.btn.big{width:100%;padding:11px;font-size:15px;background:var(--acc2)}
-.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
-.seg button{background:var(--panel2);color:var(--mut);border:0;padding:6px 12px;cursor:pointer;font:inherit}
-.seg button.on{background:var(--acc);color:#04111f;font-weight:600}
+[hidden]{display:none!important}
+html,body{height:100%}
+html{background:var(--bg)}
+body{margin:0;color:var(--txt);font:13px/1.5 var(--mono);-webkit-font-smoothing:antialiased;overflow:hidden;overscroll-behavior:none;background:
+  radial-gradient(1100px 620px at 50% 22%,rgba(58,134,240,.2),transparent 70%),
+  radial-gradient(800px 500px at 100% 100%,rgba(125,255,196,.06),transparent 70%),var(--bg)}
+body.pro{overflow:auto}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;-webkit-tap-highlight-color:transparent}
+:focus-visible{outline:2px solid var(--mint);outline-offset:2px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.crt{position:fixed;inset:0;pointer-events:none;z-index:120;background:repeating-linear-gradient(0deg,rgba(255,255,255,.02) 0 1px,transparent 1px 3px);mix-blend-mode:screen}
+
+/* ---------- khung ứng dụng: luôn vừa đúng 1 màn hình, mọi thiết bị ---------- */
+.app{height:100vh;height:100dvh;display:flex;flex-direction:column}
+.top{height:var(--hdr);flex:none;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:0 var(--padr) 0 var(--padx);gap:10px;position:relative;z-index:20}
+.clock{font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--mut);line-height:1.5}
+.clock b{display:block;color:var(--txt);font-weight:600}
+.logo{margin:0;text-align:center;font-weight:800;font-style:italic;letter-spacing:-.05em;line-height:.9;font-size:clamp(24px,3.4vw,40px);padding:0 .12em .04em 0;
+  background:repeating-linear-gradient(0deg,#fff 0 3px,transparent 3px 4px);-webkit-background-clip:text;background-clip:text;color:transparent}
+.tools{display:flex;gap:8px;justify-content:flex-end;align-items:center}
+.tbtn{background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:99px;padding:6px 12px;font-size:12px;transition:.2s;white-space:nowrap;min-height:34px}
+.tbtn:hover{border-color:var(--mint);color:var(--mint)}
+.tbtn.ok{color:var(--mint);border-color:#1f5c45}.tbtn.bad{color:var(--red);border-color:#6b2c34}
+.tbtn .n{display:inline-grid;place-items:center;min-width:18px;height:18px;border-radius:9px;background:var(--blue);color:#fff;font-size:10px;margin-left:4px;padding:0 4px}
+.stage{flex:1;min-height:0;position:relative}
+.glwrap{position:absolute;inset:0;overflow:hidden}
+#gl{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:manipulation}
+
+/* màn hình thấp (điện thoại nằm ngang, cửa sổ nhỏ) */
+@media(max-height:520px){:root{--hdr:44px}.clock{display:none}.top{grid-template-columns:1fr auto}.logo{text-align:left;font-size:22px}.tbtn{padding:4px 10px;min-height:30px}}
+@media(max-width:640px){.clock{display:none}.top{grid-template-columns:1fr auto}.logo{text-align:left}.tbtn .t{display:none}}
+@media(pointer:coarse){.tbtn{min-height:40px;padding:6px 14px}}
+
+.plug{position:absolute;right:var(--padr);top:calc(var(--hdr) - 4px);width:min(420px,calc(100vw - 24px));z-index:30;background:rgba(13,16,22,.97);border:1px solid var(--line);border-radius:16px;padding:14px 16px;box-shadow:0 20px 50px rgba(0,0,0,.6);max-height:calc(100dvh - var(--hdr) - 12px);overflow:auto}
+.plug h3{margin:0 0 8px;font-size:13px}.plug p{margin:8px 0 0}
 .hint{color:var(--mut);font-size:12px}
-.warn{color:var(--warn);font-size:12px}
-.sizes{display:flex;flex-direction:column;gap:6px;margin-top:8px}
-.size{display:grid;grid-template-columns:1fr auto;gap:6px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:7px 10px;cursor:pointer}
-.size.sel{border-color:var(--acc)}
-.size small{color:var(--mut)}
-.size .x{background:none;border:0;color:var(--mut);cursor:pointer;font-size:16px}
-.checks{display:flex;flex-direction:column;gap:4px;max-height:160px;overflow:auto}
-.checks label{display:flex;align-items:center;gap:8px;margin:0;color:var(--txt);font-size:13px}
-.checks input{width:auto}
-canvas#pv{width:100%;border-radius:8px;background:#0a0d12;border:1px solid var(--line);display:block}
-.kv{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;font-size:13px;margin-top:8px}
-.kv span:nth-child(odd){color:var(--mut)}
-.bar{height:8px;background:var(--panel2);border-radius:99px;overflow:hidden;margin-top:6px}
-.bar>i{display:block;height:100%;background:var(--ok);width:0}
-.job{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--panel2);margin-bottom:8px}
-.job .top{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.badge{padding:1px 9px;border-radius:99px;font-size:11px;font-weight:700;text-transform:uppercase}
-.b-submitted,.b-queued{background:#3a3320;color:var(--warn)}.b-running{background:#173250;color:var(--acc)}
-.b-done{background:#173a28;color:var(--ok)}.b-error,.b-cancelled{background:#4a2020;color:var(--bad)}
-.job .meta{color:var(--mut);font-size:12px;margin:4px 0}
+label.f{display:block;color:var(--mut);font-size:11px;margin:10px 0 4px}
+input[type=text],input[type=password],input[type=number],select,textarea{width:100%;background:var(--card2);border:1px solid var(--line);border-radius:9px;padding:8px 10px;min-height:36px}
+input:focus,select:focus,textarea:focus{border-color:var(--blue);outline:none}
+.row{display:flex;gap:10px;flex-wrap:wrap}.row>*{flex:1;min-width:110px}
+.btn{background:var(--blue);color:#fff;border:0;border-radius:10px;padding:8px 14px;font-weight:600;transition:transform .15s,filter .2s;min-height:36px}
+.btn:hover{filter:brightness(1.12)}.btn:active{transform:translateY(1px)}
+.btn.sec{background:var(--card2);border:1px solid var(--line);color:var(--txt);font-weight:500}.btn.sec:hover{border-color:var(--blue)}
+.btn.mint{background:var(--mint);color:#04140d}
+a.btn{text-decoration:none;display:inline-flex;align-items:center}
+@media(pointer:coarse){.btn{min-height:44px}}
+code{background:#000;border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:12px;word-break:break-all}
+
+/* ---------- lời Bọt + nút thả video ---------- */
+.say{position:absolute;left:0;top:0;z-index:5;pointer-events:none;max-width:min(250px,70vw);background:#fff;color:#0a1530;border-radius:14px;padding:8px 12px;font-size:12.5px;line-height:1.4;font-weight:500;
+  box-shadow:0 0 0 2px #1c2b4a,0 10px 24px rgba(0,0,0,.45);will-change:transform;min-height:34px}
+.say::after{content:"";position:absolute;left:calc(50% + var(--ax,0px));bottom:-8px;margin-left:-7px;border:7px solid transparent;border-bottom:0;border-top-color:#fff;filter:drop-shadow(0 2px 0 #1c2b4a)}
+.doorHint{position:absolute;left:0;top:0;z-index:4;border-radius:50%;background:rgba(5,10,24,.38);border:2px dashed rgba(125,200,255,.75);color:#d7ecff;display:grid;place-items:center;align-content:center;gap:4px;padding:0;
+  font-size:clamp(10px,1.1vw,12px);font-weight:700;letter-spacing:.12em;text-align:center;text-shadow:0 0 8px rgba(58,134,240,.9);will-change:transform;transition:background .2s,border-color .2s}
+.doorHint:hover{background:rgba(58,134,240,.28);border-color:#fff}
+.doorHint .arrow{font-size:clamp(18px,2.2vw,26px);animation:bobArrow 1s ease-in-out infinite;line-height:1}
+.doorHint small{font-weight:400;letter-spacing:.04em;opacity:.8;font-size:clamp(9px,.9vw,11px)}
+body.drag .doorHint{background:rgba(58,134,240,.35);border-color:#fff;border-style:solid}
+@keyframes bobArrow{50%{transform:translateY(6px)}}
+@media(max-height:420px){.doorHint small{display:none}}
+.noGL{position:absolute;inset:0;display:grid;place-items:center;align-content:center;gap:10px;text-align:center}
+.noGL .m{width:120px}.noGL .m svg{width:100%;image-rendering:pixelated}
+.noGL button{background:rgba(58,134,240,.2);border:2px dashed var(--blue);border-radius:20px;padding:20px 30px;font-weight:700;letter-spacing:.08em}
+
+/* ---------- thanh trạng thái (gọn, 1 hàng) ---------- */
+.bar{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(10px + var(--sb));width:min(860px,calc(100% - 24px));z-index:10;
+  background:rgba(10,13,19,.8);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.09);border-radius:20px;padding:10px 12px;box-shadow:0 14px 40px rgba(0,0,0,.5)}
+.bi,.bl{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.bi .bhint{color:var(--mut);flex:1;min-width:150px}
+.bsum{flex:1;min-width:0;display:flex;align-items:center;gap:10px;background:transparent;border:1px solid var(--line);border-radius:14px;padding:6px 10px;text-align:left;min-height:46px}
+.bsum:hover{border-color:var(--mint)}
+.bsum img{width:44px;height:30px;object-fit:cover;border-radius:5px;flex:none}
+.bsum .tx{min-width:0;display:flex;flex-direction:column}
+.bsum .t1{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bsum .t2{font-size:11px;color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bsum .gear{margin-left:auto;color:var(--mint);font-size:11px;white-space:nowrap}
+.start{border:0;border-radius:16px;padding:14px 26px;font-weight:800;font-size:16px;letter-spacing:.08em;color:#04140d;background:linear-gradient(180deg,#a5ffd9,var(--mint) 60%,#4fe3a4);box-shadow:0 5px 0 #1f9a6a,0 12px 28px rgba(125,255,196,.22);transition:transform .12s,box-shadow .12s,filter .2s;white-space:nowrap}
+.start:hover{filter:brightness(1.06)}
+.start:active{transform:translateY(4px);box-shadow:0 1px 0 #1f9a6a,0 4px 12px rgba(125,255,196,.2)}
+.start:disabled{filter:grayscale(.7) brightness(.6);cursor:wait}
+.start.sm{padding:11px 20px;font-size:15px}
+.dk{display:grid;gap:8px;justify-items:center;text-align:center;padding:2px 0}
+.dk .big{font-size:clamp(16px,2.2vw,22px);font-weight:800;letter-spacing:.04em}
+.dk .acts{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.dk pre{margin:0;max-height:120px;overflow:auto;text-align:left;white-space:pre-wrap;background:#000;border:1px solid var(--line);border-radius:8px;padding:8px;font-size:11px;width:100%}
+.dk.done .big{color:var(--mint)}.dk.err .big{color:var(--red)}
+.steps{display:flex;gap:6px;list-style:none;margin:2px 0 0;padding:0;width:min(520px,100%)}
+.steps li{flex:1;border-top:4px solid #263042;padding-top:5px;font-size:11px;color:var(--mut);transition:.3s}
+.steps li.done{border-color:var(--mint);color:var(--txt)}
+.steps li.on{border-color:var(--blue);color:#fff;animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{50%{border-color:#8cbcff}}
+.link{background:none;border:0;color:var(--mut);text-decoration:underline;padding:2px;font-size:12px}.link:hover{color:var(--txt)}
+@media(max-height:520px){.bar{padding:6px 10px;border-radius:16px}.dk .hint{display:none}.start{padding:10px 18px;font-size:14px}}
+
+/* ---------- BẢNG CÀI ĐẶT = bảng điều khiển của máy giặt, phóng to ---------- */
+.scrim{position:fixed;inset:0;z-index:80;background:rgba(3,6,12,.62);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);animation:fade .35s ease-out}
+@keyframes fade{from{opacity:0}}
+.panelwrap{position:fixed;inset:0;z-index:81;display:grid;place-items:center;padding:max(12px,env(safe-area-inset-top)) var(--padr) max(12px,var(--sb)) var(--padx);pointer-events:none}
+.panel{--ink:#18202e;--mut2:#667086;--line2:rgba(24,32,46,.11);--blue2:#2b6fd6;--ok:#0f9c69;--sel:var(--blue);
+  pointer-events:auto;width:min(1000px,100%);max-height:calc(100vh - 24px);max-height:calc(100dvh - 24px - env(safe-area-inset-top,0px) - var(--sb));
+  display:flex;flex-direction:column;color:var(--ink);outline:none;overflow:hidden;border-radius:34px;
+  background:linear-gradient(180deg,#f9f6f0 0,#f0ece3 55%,#e8e3d8);
+  box-shadow:inset 0 0 0 2px rgba(255,255,255,.9),0 0 0 1px rgba(0,0,0,.55),0 50px 120px rgba(0,0,0,.72),0 0 100px rgba(58,134,240,.3);will-change:transform,opacity}
+.panel .hint{color:var(--mut2)}
+.panel code{background:#f1ede2;border-color:#ddd6c4;color:#2a2f3d}
+.panel input[type=text],.panel input[type=number]{background:#fff;border:1px solid #cfd6e4;color:var(--ink)}
+.panel input:focus{border-color:var(--blue)}
+.panel .btn.sec{background:#fff;color:var(--ink);border:1px solid #cfd6e4}
+.panel .btn.sec:hover{border-color:var(--blue)}
+
+/* dải điều khiển phía trên: ngăn bột giặt + màn LCD + núm đóng (giống mặt máy) */
+.pstrip{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:14px;align-items:center;padding:16px 18px 10px;flex:none}
+.pdrawer{width:54px;height:46px;border-radius:11px;background:linear-gradient(#d6d1c4,#bdb7a8);box-shadow:inset 0 2px 0 rgba(255,255,255,.75),inset 0 -2px 0 rgba(0,0,0,.14);display:grid;gap:5px;padding:11px 10px;align-content:center}
+.pdrawer i{height:4px;border-radius:2px;background:rgba(0,0,0,.24)}
+.plcd2{position:relative;background:#06130f;border-radius:13px;padding:8px 14px 9px;box-shadow:inset 0 0 0 2px #27322e,inset 0 6px 14px #000,0 1px 0 #fff;overflow:hidden;min-width:0}
+.plcd2::after{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(0,0,0,.26) 0 1px,transparent 1px 3px)}
+.plcd2 .l1{font-size:10px;letter-spacing:.22em;color:rgba(125,255,196,.55)}
+.plcd2 .l2{font-size:15px;font-weight:700;letter-spacing:.06em;color:var(--mint);text-shadow:0 0 10px rgba(125,255,196,.6);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.plcd2.warn .l2{color:var(--amber);text-shadow:0 0 10px rgba(255,200,87,.55)}
+.pclose{width:46px;height:46px;border-radius:50%;border:0;padding:0;font-size:17px;font-weight:700;color:#4a5160;background:conic-gradient(from 20deg,#f1eee6,#bfb9ab,#f1eee6,#bfb9ab,#f1eee6);box-shadow:0 3px 0 #8d887c,0 6px 12px rgba(0,0,0,.22),inset 0 0 0 4px #f8f5ee;transition:transform .15s}
+.pclose:hover{transform:rotate(90deg)}.pclose:active{transform:translateY(2px) rotate(90deg)}
+
+/* 3 bước: tóm tắt + trạng thái hoàn thành */
+.psteps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0;padding:4px 18px 10px;list-style:none;flex:none}
+.psteps button{width:100%;display:flex;align-items:center;gap:10px;text-align:left;background:rgba(255,255,255,.72);border:1px solid var(--line2);border-radius:15px;padding:8px 12px;min-height:50px;color:var(--ink);transition:.2s}
+.psteps button:hover{background:#fff}
+.psteps .n{width:26px;height:26px;border-radius:50%;background:#dcd7cb;color:#59627a;display:grid;place-items:center;font-weight:800;font-size:12px;flex:none;transition:.3s}
+.psteps .tx{min-width:0;display:flex;flex-direction:column}
+.psteps .t{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut2);font-weight:700}
+.psteps .sm{font-size:12.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.psteps li.done .n{background:var(--ok);color:#fff;animation:pop .35s cubic-bezier(.3,1.7,.5,1)}
+.psteps li.cur button{border-color:var(--blue);box-shadow:0 0 0 4px rgba(58,134,240,.16);background:#fff}
+.psteps li.cur .n{background:var(--blue);color:#fff}
+@keyframes pop{from{transform:scale(.4)}}
+
+.pbody{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:14px;padding:6px 18px 16px;overflow:auto;min-height:0;overscroll-behavior:contain}
+@media(max-width:780px){.pbody{grid-template-columns:1fr}}
+.pcol{display:flex;flex-direction:column;gap:14px;min-width:0}
+.sec{position:relative;background:#fff;border-radius:22px;padding:14px 16px 16px;box-shadow:inset 0 1px 0 #fff,0 2px 0 rgba(24,32,46,.05),0 12px 26px -16px rgba(24,32,46,.4)}
+.sec h3{margin:0 0 11px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;display:flex;align-items:center;gap:9px;color:var(--mut2);font-weight:700}
+.sec h3 .num{background:var(--blue);color:#fff;border-radius:50%;width:22px;height:22px;display:inline-grid;place-items:center;font-size:11px;letter-spacing:0;flex:none}
+.sec.need{animation:need .9s}
+@keyframes need{0%,100%{box-shadow:0 0 0 0 rgba(255,107,122,0)}25%,65%{box-shadow:0 0 0 5px rgba(255,107,122,.55)}}
+.panel.in .sec{animation:rise .55s cubic-bezier(.2,.9,.3,1) both;animation-delay:var(--d,.15s)}
+@keyframes rise{from{opacity:0;transform:translateY(16px)}}
+
+/* ① video: thẻ có ảnh bìa */
+.vgrid{display:flex;flex-direction:column;gap:8px;max-height:184px;overflow:auto;padding:3px}
+.vcard{position:relative;display:flex;align-items:center;gap:12px;background:#faf8f3;border-radius:15px;padding:8px 46px 8px 8px;cursor:pointer;min-width:0;box-shadow:0 0 0 1px var(--line2);transition:.2s;flex:none}
+.vcard input{position:absolute;opacity:0;inset:0;cursor:pointer;z-index:2}
+.vcard .th{display:grid;place-items:center;width:100px;flex:none;border-radius:10px;aspect-ratio:16/10;background:linear-gradient(135deg,#e4eaf6,#d2dbee);color:#8a99b8;font-size:24px;overflow:hidden}
+.vcard .th img{width:100%;height:100%;object-fit:cover;display:block}
+.vcard .mt{min-width:0;flex:1;display:flex;flex-direction:column}
+.vcard .nm{font-weight:700;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vcard .sub{font-size:10.5px;color:var(--mut2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vcard .ck{position:absolute;top:50%;right:12px;margin-top:-12px;width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,.95);border:2px solid #c9d1e1;color:transparent;display:grid;place-items:center;font-size:12px;font-weight:800;transition:.2s;z-index:1}
+.vcard .tag{align-self:flex-start;font-size:10.5px;font-weight:800;margin-top:3px}
+.tag.ok{color:var(--ok)}.tag.warn{color:#a76400}
+.vcard:has(input:checked){box-shadow:0 0 0 2px var(--blue),0 0 0 6px rgba(58,134,240,.16)}
+.vcard:has(input:checked) .ck{background:var(--blue);border-color:var(--blue);color:#fff}
+.vcard:has(input:focus-visible){outline:2px solid var(--blue);outline-offset:3px}
+.vadd{display:flex;flex:none;flex-direction:row;align-items:center;justify-content:center;gap:10px;min-height:48px;background:transparent;border:2px dashed #c6cddd;border-radius:15px;color:var(--mut2);font-size:12px;font-weight:600;transition:.2s}
+.vadd b{font-size:20px;line-height:1;color:var(--blue)}
+.vadd:hover{border-color:var(--blue);color:var(--ink);background:#f3f7ff}
+
+/* ② màn LED: thẻ có hình dáng màn */
+.screens{display:grid;grid-template-columns:repeat(auto-fill,minmax(122px,1fr));gap:8px}
+.scr{position:relative;display:flex;align-items:center;gap:10px;background:#faf8f3;border:0;box-shadow:0 0 0 1px var(--line2);border-radius:14px;padding:8px 10px;text-align:left;min-height:52px;color:var(--ink);transition:.18s}
+.scr:hover{box-shadow:0 0 0 1px var(--blue)}
+.scr .ar{display:grid;place-items:center;width:34px;height:30px;flex:none}
+.scr .ar i{display:block;width:var(--w);height:var(--h);border:2px solid #7f8ba6;border-radius:3px;background:#e6ebf6;transition:.18s}
+.scr b{font-size:12px;display:block;line-height:1.2}
+.scr small{font-size:10.5px;color:var(--mut2);display:block}
+.scr.on{background:#eef4ff;box-shadow:0 0 0 2px var(--blue),0 0 0 6px rgba(58,134,240,.14)}
+.scr.on .ar i{border-color:var(--blue);background:#cfe0ff}
+.scr.on::after{content:"✓";position:absolute;top:5px;right:8px;font-size:11px;font-weight:800;color:var(--blue)}
+.scr.add{background:transparent;box-shadow:none;border:2px dashed #c6cddd;color:var(--mut2)}
+.scr.add:hover{border-color:var(--blue);color:var(--ink)}
+.custom{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.custom input{flex:1;min-width:64px;padding:7px 9px}
+.pvbox{margin-top:12px;background:#0d1730;border-radius:16px;padding:8px 8px 10px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06),inset 0 8px 20px rgba(0,0,0,.4)}
+canvas#pv{width:100%;height:116px;display:block;border-radius:10px}
+.pvcap{font-size:12px;color:#cfe0ff;margin-top:7px;text-align:center;min-height:18px}
+
+/* ③ nước giặt: chai thật */
+.bottles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.bottle{position:relative;cursor:pointer;min-width:0}
+.bottle input{position:absolute;opacity:0;inset:0;cursor:pointer;z-index:2}
+.bottle .bc{display:flex;flex-direction:column;align-items:center;text-align:center;gap:3px;height:100%;background:#faf8f3;box-shadow:0 0 0 1px var(--line2);border-radius:18px;padding:14px 8px 11px;transition:.22s}
+.bottle:hover .bc{box-shadow:0 0 0 1px var(--c)}
+.bottle .bt{position:relative;width:36px;height:70px;margin-bottom:4px;transition:transform .4s cubic-bezier(.3,1.7,.5,1);transform-origin:50% 100%}
+.bottle .cap{position:absolute;left:11px;right:11px;top:0;height:10px;background:#fff;border-radius:3px 3px 1px 1px;box-shadow:0 0 0 1px rgba(24,32,46,.18)}
+.bottle .bd{position:absolute;left:0;right:0;top:9px;bottom:0;border-radius:12px 12px 10px 10px;background:linear-gradient(90deg,color-mix(in srgb,var(--c) 70%,#fff),var(--c) 45%,color-mix(in srgb,var(--c) 78%,#000));box-shadow:inset 0 0 0 1px rgba(0,0,0,.08)}
+.bottle .bd::before{content:"";position:absolute;left:5px;right:5px;top:22px;height:20px;background:#fff;border-radius:4px;opacity:.92}
+.bottle .bd::after{content:"";position:absolute;left:5px;top:6px;width:4px;height:44px;border-radius:3px;background:rgba(255,255,255,.55)}
+.bottle b{font-size:13.5px}
+.bottle small{font-size:10.5px;color:var(--mut2);line-height:1.3;min-height:28px}
+.bottle .mt{display:grid;gap:3px;width:100%;margin-top:2px}
+.bottle .r{display:flex;justify-content:space-between;align-items:center;font-size:10px;color:var(--mut2)}
+.bottle .dots i{display:inline-block;width:7px;height:7px;border-radius:50%;background:#d7dce8;margin-left:3px}
+.bottle .dots i.on{background:var(--c)}
+.bottle input:checked+.bc{background:color-mix(in srgb,var(--c) 11%,#fff);box-shadow:0 0 0 2px var(--c),0 0 0 7px color-mix(in srgb,var(--c) 22%,transparent)}
+.bottle input:checked+.bc .bt{transform:translateY(-7px) rotate(-6deg)}
+.bottle input:checked+.bc::after{content:"✓";position:absolute;top:8px;right:10px;font-weight:800;font-size:13px;color:color-mix(in srgb,var(--c) 70%,#000)}
+.bottle input:focus-visible+.bc{outline:2px solid var(--blue);outline-offset:3px}
+.trial{display:flex;align-items:center;gap:12px;cursor:pointer;background:#fff;border-radius:22px;padding:13px 16px;box-shadow:inset 0 1px 0 #fff,0 2px 0 rgba(24,32,46,.05),0 12px 26px -16px rgba(24,32,46,.4)}
+.trial .tx{display:flex;flex-direction:column;min-width:0}
+.trial b{font-size:13px}.trial small{font-size:11px;color:var(--mut2)}
+.sw input{position:absolute;opacity:0}
+.sw i{width:44px;height:26px;border-radius:99px;background:#d7dce8;position:relative;flex:none;transition:.25s;box-shadow:inset 0 2px 4px rgba(0,0,0,.12)}
+.sw i::after{content:"";position:absolute;left:3px;top:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.25);transition:.25s cubic-bezier(.3,1.5,.5,1)}
+.sw input:checked+i{background:var(--ok)}
+.sw input:checked+i::after{left:21px}
+.sw input:focus-visible+i{outline:2px solid var(--blue);outline-offset:2px}
+.alerts{display:grid;gap:6px}.alerts:empty{display:none}
+.alert{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:12px;color:#6f4700;background:#fff4d6;border:1px solid #efd48c;border-radius:14px;padding:8px 12px}
+.alert button{margin-left:auto;background:transparent;border:1px solid #b27300;color:#8a5800;border-radius:9px;padding:3px 11px;font-size:11px;font-weight:600}
+.alert button:hover{background:#b27300;color:#fff}
+.upnote{border:2px dashed #dfbe66;border-radius:16px;padding:10px 14px;background:#fff8e3;font-size:12px;color:#5b4300}
+.upnote b{color:#a76400}
+.upnote .cmd{display:flex;gap:8px;align-items:center;margin-top:7px;flex-wrap:wrap}
+.upnote .cmd code{flex:1;min-width:160px}
+
+/* chân bảng = tấm chân máy màu xanh, có Bọt + nút GIẶT */
+.pfoot{display:flex;align-items:center;gap:14px;padding:12px 18px 14px;background:linear-gradient(180deg,#3d88f2,#2b6fd6);color:#fff;flex:none;box-shadow:inset 0 2px 0 rgba(255,255,255,.35)}
+.pbot{width:58px;height:58px;border-radius:50%;background:#fff;display:grid;place-items:center;flex:none;box-shadow:inset 0 -4px 0 rgba(24,32,46,.1),0 3px 8px rgba(0,0,0,.2)}
+.pbot svg{width:42px;height:auto;image-rendering:pixelated;animation:bobArrow 1.6s ease-in-out infinite}
+.pfoot .info{flex:1;min-width:0}
+.runSum{font-weight:700;font-size:14px;line-height:1.35}
+.pmsg{font-size:12px;color:#ffe9a8;min-height:16px;font-weight:600}
+.pfoot .info:has(.pmsg:not(:empty)) .runSum{display:none}
+.pfoot .start{flex:none;min-width:210px}
+.start.notready{filter:saturate(.3) brightness(.97)}
+@media(max-width:640px){
+  .pstrip{padding:12px 12px 8px;gap:10px}.pdrawer{display:none}.pstrip{grid-template-columns:minmax(0,1fr) auto}
+  .psteps{padding:2px 12px 8px;gap:6px}.psteps button{padding:7px 8px;gap:7px}.psteps .sm{display:none}.psteps .t{font-size:9.5px;letter-spacing:.06em}.psteps .n{width:22px;height:22px}
+  .pbody{padding:4px 12px 12px}.sec{padding:12px 13px 14px;border-radius:20px}
+  .pfoot{flex-wrap:wrap;padding:10px 12px 12px}.pfoot .info{flex:1 1 60%}.pfoot .start{width:100%}
+}
+/* điện thoại nằm ngang / màn thấp: gọn lại nhưng vẫn đủ đồ nghề */
+@media(max-height:560px){
+  .panel{border-radius:24px}
+  .pstrip{padding:9px 12px 5px;gap:10px}.pdrawer{display:none}.pstrip{grid-template-columns:minmax(0,1fr) auto}
+  .plcd2{padding:5px 11px}.plcd2 .l1{display:none}.plcd2 .l2{font-size:13px}.pclose{width:36px;height:36px;font-size:14px}
+  .psteps{display:none}
+  .pbody{padding:2px 12px 10px;gap:10px}.pcol{gap:10px}.sec{padding:10px 12px 12px;border-radius:16px}.sec h3{margin-bottom:7px}
+  .vgrid{max-height:112px;gap:6px}.vcard{padding:6px 44px 6px 6px;gap:10px}.vcard .th{width:72px}.vadd{min-height:40px}
+  .scr{min-height:44px;padding:6px 8px}.scr small{display:none}
+  .bottle .mt,.bottle small{display:none}.bottle .bc{padding:10px 6px 8px}.bottle .bt{height:46px;width:28px}.bottle .cap{left:8px;right:8px;height:8px}.bottle .bd{top:7px}.bottle .bd::before{top:14px;height:14px}.bottle .bd::after{height:26px}
+  canvas#pv{height:68px}.pvbox{margin-top:8px;padding:5px}.pvcap{margin-top:4px;font-size:11px}
+  .trial{padding:8px 12px;border-radius:16px}.trial small{display:none}
+  .pfoot{padding:8px 12px;flex-wrap:nowrap;gap:10px}.pbot{width:40px;height:40px}.pbot svg{width:28px}.pfoot .info{flex:1}.pfoot .start{width:auto;padding:10px 16px;font-size:14px;min-width:150px}
+  .runSum{font-size:12.5px}.upnote .hint{display:none}
+}
+@media(max-height:560px) and (min-width:700px){.pbody{grid-template-columns:minmax(0,1.3fr) minmax(0,1fr)}}
+@media(pointer:coarse){.scr,.vcard,.bottle .bc{min-height:48px}}
+
+/* ---------- lịch sử (giỏ đồ) ---------- */
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(420px,100%);z-index:90;background:rgba(10,13,19,.97);border-left:1px solid var(--line);padding:16px max(16px,env(safe-area-inset-right)) max(16px,var(--sb)) 16px;overflow:auto;box-shadow:-30px 0 60px rgba(0,0,0,.5);animation:slide .25s ease-out}
+@keyframes slide{from{transform:translateX(30px);opacity:0}}
+.drawer h2{margin:0 0 12px;font-size:14px;display:flex;align-items:center;gap:8px}
+.drawer h2 .sp{margin-left:auto;display:flex;gap:6px}
+.job{border:1px solid var(--line);border-radius:14px;padding:10px 12px;background:var(--card);display:grid;grid-template-columns:40px 1fr;gap:10px;min-width:0;margin-bottom:10px}
+.job .ico{width:40px;height:40px;border-radius:10px;background:#070b14;display:grid;place-items:center;box-shadow:inset 0 0 0 1px var(--line)}
+.job .ico svg{width:30px;height:30px;image-rendering:pixelated}
+.job .top2{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.badge{padding:1px 9px;border-radius:99px;font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase}
+.b-queue{background:#2a2210;color:var(--amber)}.b-run{background:#122846;color:#8cbcff}.b-ok{background:#0e2019;color:var(--mint)}.b-bad{background:#2a1015;color:var(--red)}
+.job .meta{color:var(--mut);font-size:11px;margin:4px 0;word-break:break-word}
 .job .acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
-.job a,.job button{font-size:12px}
-.job a.btn{text-decoration:none;display:inline-block}
-code,pre{background:#0a0d12;border:1px solid var(--line);border-radius:6px;padding:2px 6px;font-size:12px}
-pre{padding:8px;overflow:auto;max-height:240px;white-space:pre-wrap}
-details summary{cursor:pointer;color:var(--mut)}
-#toast{position:fixed;right:16px;bottom:16px;max-width:420px;background:#1b2434;border:1px solid var(--line);border-radius:10px;padding:10px 14px;display:none;z-index:9}
-#toast.show{display:block}#toast.bad{border-color:#6b2c2c}#toast.good{border-color:#285b3b}
+.job .acts .btn{font-size:11px;padding:4px 10px;min-height:30px}
+.job details summary{cursor:pointer;color:var(--mut);font-size:11px;margin-top:4px}
+.job pre{margin:6px 0 0;background:#000;border:1px solid var(--line);border-radius:8px;padding:8px;font-size:11px;overflow:auto;max-height:180px;white-space:pre-wrap}
+.empty{border:1px dashed var(--line);border-radius:14px;padding:20px;text-align:center;color:var(--mut)}
+
+/* ---------- panel thợ giặt (ẩn, mở bằng ?pro) ---------- */
+#pro{max-width:1100px;margin:0 auto;padding:20px var(--padx) 60px}
+#pro .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 16px}
+#pro h2{margin:0 0 6px;font-size:13px}
+#pro .chip{display:inline-flex;align-items:center;background:var(--card2);border:1px solid var(--line);color:var(--txt);border-radius:10px;padding:6px 11px;font-size:12px;min-height:34px}
+#pro .chip:hover{border-color:var(--blue)}
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + var(--sb));max-width:min(440px,calc(100vw - 28px));background:#fff;color:#0a1530;border-radius:12px;padding:10px 14px;display:none;z-index:130;font-size:12.5px;box-shadow:0 0 0 2px #1c2b4a,0 14px 30px rgba(0,0,0,.5)}
+#toast.show{display:block}#toast.bad{background:#ffe3e6;box-shadow:0 0 0 2px #7a1f2b,0 14px 30px rgba(0,0,0,.5)}#toast.good{background:#dcffee;box-shadow:0 0 0 2px #1d6b4a,0 14px 30px rgba(0,0,0,.5)}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+
+/* ===== size-washer: thương hiệu, ngôn ngữ, nguồn điện ===== */
+.top{display:flex;justify-content:space-between;align-items:center}
+.brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;min-width:0}
+.brand .mark{width:40px;height:40px;flex:none;filter:drop-shadow(0 3px 8px rgba(58,134,240,.5))}
+.brand .word{font-weight:800;font-style:italic;letter-spacing:-.045em;line-height:1;font-size:clamp(21px,2.8vw,30px);padding:0 .12em .04em 0;white-space:nowrap;
+  background:repeating-linear-gradient(0deg,#fff 0 3px,transparent 3px 4px);-webkit-background-clip:text;background-clip:text;color:transparent}
+@media(max-height:520px){.brand .mark{width:30px;height:30px}.brand .word{font-size:20px}}
+@media(max-width:640px){.langwrap select{padding:6px 22px 6px 11px;background-position:calc(100% - 11px) 52%}.tools{gap:6px}.tbtn{padding:6px 10px}}
+@media(max-width:430px){.brand{gap:7px;flex:none}.brand .mark{width:30px;height:30px}.brand .word{font-size:17px}.tbtn .n{display:none}.tbtn{padding:6px 9px}}
+.langwrap select{appearance:none;-webkit-appearance:none;background:rgba(255,255,255,.04) linear-gradient(45deg,transparent 50%,var(--mut) 50%) no-repeat calc(100% - 15px) 52%/5px 5px;border:1px solid var(--line);border-radius:99px;
+  padding:6px 28px 6px 12px;font-size:12px;min-height:34px;width:auto;color:var(--txt);cursor:pointer}
+.langwrap select option{background:#10141b;color:#eef2f8}
+@media(pointer:coarse){.langwrap select{min-height:40px}}
+.tbtn.power{display:inline-flex;align-items:center;gap:7px}
+.tbtn.power .pico{font-size:15px;color:#ff8a96;transition:.3s}
+.tbtn.power.on{border-color:#1f5c45;color:var(--mint)}
+.tbtn.power.on .pico{color:var(--mint);text-shadow:0 0 10px rgba(125,255,196,.8)}
+.tbtn.power.busy .pico{animation:pulse 1s ease-in-out infinite}
+.plugHint{position:absolute;left:0;top:0;z-index:6;display:flex;flex-direction:column;align-items:center;gap:6px;background:linear-gradient(180deg,#3d88f2,#2b6fd6);color:#fff;border:0;border-radius:16px;padding:9px 14px;
+  font-weight:700;font-size:12.5px;box-shadow:0 8px 24px rgba(0,0,0,.45),0 0 0 3px rgba(255,255,255,.5);will-change:transform;animation:plugPulse 1.6s ease-in-out infinite;max-width:min(240px,70vw);text-align:center}
+.plugHint::after{content:"";position:absolute;bottom:-9px;left:50%;margin-left:-8px;border:8px solid transparent;border-bottom:0;border-top-color:#2b6fd6}
+.plugHint b{font-size:18px;line-height:1}
+@keyframes plugPulse{50%{box-shadow:0 8px 24px rgba(0,0,0,.45),0 0 0 7px rgba(255,255,255,.18)}}
+.pullBox{position:absolute;left:0;top:0;z-index:7;width:min(300px,calc(100vw - 24px));background:#f6f2ea;color:#18202e;border-radius:20px;padding:12px 14px;display:flex;flex-direction:column;gap:8px;will-change:transform;
+  box-shadow:inset 0 0 0 2px rgba(255,255,255,.9),0 0 0 1px rgba(0,0,0,.5),0 22px 50px rgba(0,0,0,.55)}
+.pullBox .pt{font-size:13px}
+.pullBox .pr{display:flex;align-items:center;gap:9px;background:#fff;border-radius:13px;padding:6px 8px}
+.pullBox .pr img,.pullBox .th0{width:46px;height:30px;object-fit:cover;border-radius:6px;flex:none;display:grid;place-items:center;background:#dfe6f4}
+.pullBox .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;font-size:12px}
+.pullBox small{color:#667086;font-size:11px}
+.pullBox .pa{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.pullBox .btn.sec{background:#fff;color:#18202e;border:1px solid #cfd6e4}
+.pullBox .pr .btn{min-height:32px;padding:5px 12px;font-size:12px;border-color:#ff9aa6;color:#b3283a}
+.bi#barOff{justify-content:center}
+.bi#barOff .bhint{color:var(--txt)}
+
+/* ===== cửa sổ xem video đã resize (kiểu tấm vải kẹp trên dây) ===== */
+.vscrim{position:fixed;inset:0;z-index:95;background:rgba(3,6,12,.66);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);animation:fade .3s ease-out}
+.viewwrap{position:fixed;inset:0;z-index:96;display:grid;place-items:center;padding:max(12px,env(safe-area-inset-top)) var(--padr) max(12px,var(--sb)) var(--padx);pointer-events:none}
+.viewer{pointer-events:auto;position:relative;width:min(900px,100%);max-height:calc(100vh - 24px);max-height:calc(100dvh - 24px - env(safe-area-inset-top,0px) - var(--sb));display:flex;flex-direction:column;outline:none;
+  background:linear-gradient(180deg,#f9f6f0,#ebe6db);color:#18202e;border-radius:30px;overflow:visible;margin-top:22px;
+  box-shadow:inset 0 0 0 2px rgba(255,255,255,.9),0 0 0 1px rgba(0,0,0,.55),0 50px 120px rgba(0,0,0,.72),0 0 100px rgba(58,134,240,.3)}
+.viewer.in{animation:hang .6s cubic-bezier(.2,1.3,.4,1)}
+@keyframes hang{from{opacity:0;transform:translateY(-40px) rotate(-1.5deg)}}
+.viewer .rope{position:absolute;left:-14px;right:-14px;top:-17px;height:5px;border-radius:3px;background:#cdb98f;box-shadow:0 2px 0 rgba(0,0,0,.25)}
+.viewer .pin{position:absolute;top:-30px;width:20px;height:44px;border-radius:7px;background:var(--pc,#ff8fa3);box-shadow:0 3px 8px rgba(0,0,0,.35),inset 0 0 0 2px rgba(0,0,0,.08)}
+.viewer .pin::after{content:"";position:absolute;left:8px;top:14px;width:4px;height:26px;background:rgba(0,0,0,.22);border-radius:2px}
+.viewer .pin.a{left:12%}.viewer .pin.b{right:12%;--pc:#7dd6ff}
+.vhead{display:flex;align-items:center;gap:12px;padding:20px 20px 8px}
+.vhead h2{margin:0;font-size:15px;letter-spacing:.08em;text-transform:uppercase;flex:1;min-width:0}
+.vbody{padding:6px 20px 12px;overflow:auto;min-height:0}
+.vwstage{background:#05070b;border-radius:18px;overflow:hidden;display:grid;place-items:center;min-height:120px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
+.vwstage video{width:100%;max-height:min(60vh,520px);display:block;background:#000}
+.vwstage #vwEmpty{padding:28px 20px;color:#cfe0ff;text-align:center;font-size:13px;max-width:520px}
+.vwtabs{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}.vwtabs:empty{display:none}
+.vwtabs .tab{background:#fff;border:1px solid #cfd6e4;border-radius:10px;padding:6px 12px;font-size:12px;color:#18202e;min-height:34px}
+.vwtabs .tab.on{background:var(--blue);border-color:var(--blue);color:#fff}
+.vwmeta{font-size:12px;color:#667086;margin-top:8px;word-break:break-word}
+.vfoot{display:flex;gap:10px;align-items:center;justify-content:flex-end;flex-wrap:wrap;padding:12px 20px 14px;background:linear-gradient(180deg,#3d88f2,#2b6fd6);border-radius:0 0 30px 30px;box-shadow:inset 0 2px 0 rgba(255,255,255,.35)}
+.vfoot .btn.sec{background:#fff;color:#18202e;border:0}
+@media(max-height:560px){.vhead{padding:14px 16px 4px}.vbody{padding:4px 16px 8px}.vwstage video{max-height:48vh}.vfoot{padding:8px 16px}}
+.pro-card h3{margin:0 0 6px;font-size:12px}
 </style>
 </head>
 <body>
-<header>
-  <h1>🎬 LED Resize Studio</h1>
-  <span class="sub">Mở rộng video lên mọi kích thước màn LED bằng AI (chạy trên GPU Kaggle)</span>
-  <span id="conn" class="pill">chưa kết nối</span>
-</header>
+<div class="crt" aria-hidden="true"></div>
 
-<div class="wrap">
- <div class="col">
-
-  <div class="card" id="cardConn">
-    <details id="connDetails">
-      <summary><b>🔌 Kết nối GitHub</b> <span class="hint" id="connSum"></span></summary>
-      <div class="row">
-        <div><label for="repo">Repo (owner/tên-repo)</label><input type="text" id="repo" placeholder="vd: phuocthinh/led-resize"></div>
-        <div><label for="token">GitHub token (fine-grained, quyền Actions: write)</label><input type="password" id="token" placeholder="github_pat_..."></div>
-      </div>
-      <div class="row" style="margin-top:8px">
-        <button class="btn" id="btnSaveConn">Lưu &amp; kiểm tra</button>
-        <button class="btn sec" id="btnForget">Xoá token khỏi trình duyệt</button>
-      </div>
-      <p class="hint">Token chỉ lưu trong trình duyệt này (localStorage), không gửi đi đâu ngoài api.github.com. Không có token vẫn xem được danh sách job.</p>
-    </details>
-  </div>
-
-  <div class="card">
-    <h2><span class="n">1</span> Video nguồn</h2>
-    <div class="checks" id="videoList"></div>
-    <div class="row" style="margin-top:8px">
-      <div><label for="vidManual">Hoặc nhập tên file đã có trong dataset</label><input type="text" id="vidManual" placeholder="vd: fanta.mp4"></div>
-      <div style="flex:0 0 90px"><label>&nbsp;</label><button class="btn sec" id="btnVidAdd" style="width:100%">Thêm</button></div>
+<div class="app" id="app">
+  <header class="top" id="top">
+    <a class="brand" href="./" aria-label="size-washer">
+      <img class="mark" src="logo.svg" alt="" width="40" height="40">
+      <span class="word">size-washer</span>
+    </a>
+    <div class="tools">
+      <label class="langwrap"><span class="sr" data-i18n="lang.label"></span><select id="langSel" data-i18n-attr="aria-label:lang.label"></select></label>
+      <button class="tbtn" id="btnHist" aria-expanded="false" aria-controls="history" data-i18n-attr="title:hist.title">🧺 <span class="t" data-i18n="hist.btn"></span><span class="n" id="histN">0</span></button>
+      <button class="tbtn" id="btnSound" aria-pressed="false">🔇</button>
+      <button class="tbtn power" id="btnPower" aria-pressed="false"><span class="pico" aria-hidden="true">⏻</span><span class="t" id="powerLbl"></span></button>
     </div>
+  </header>
+
+  <main class="stage" id="stage">
+    <div class="glwrap" id="glwrap">
+      <canvas id="gl" aria-label="size-washer 3D"></canvas>
+      <button class="doorHint" id="doorHint" hidden data-i18n-attr="aria-label:door.aria"><span class="arrow" aria-hidden="true">↓</span><span id="hintText"></span><small data-i18n="door.hint.small"></small></button>
+      <button class="plugHint" id="plugHint" hidden><b aria-hidden="true">⏻</b><span data-i18n="plug.hint"></span></button>
+      <div class="pullBox" id="pullBox" hidden></div>
+      <div class="say" id="say" hidden><span id="sayText"></span></div>
+      <div class="noGL" id="noGL" hidden><div class="m" id="noGLm"></div><button id="noGLbtn" data-i18n="door.hint.small"></button></div>
+      <input type="file" id="fileIn" accept="video/*,.mov,.mkv,.m4v,.avi,.webm" multiple hidden>
+      <div class="sr" id="srStatus" role="status" aria-live="polite"></div>
+    </div>
+
+    <section class="bar" id="bar">
+      <div class="bi" id="barOff">
+        <span class="bhint" data-i18n="bar.off"></span>
+        <button class="start sm" id="btnPowerBar" data-i18n="bar.plug"></button>
+      </div>
+      <div class="bi" id="barIdle" hidden>
+        <span class="bhint" data-i18n="bar.idle"></span>
+        <button class="btn mint" id="btnPickBar" data-i18n="bar.pick"></button>
+      </div>
+      <div class="bl" id="barLoaded" hidden>
+        <button class="bsum" id="barOpen" data-i18n-attr="aria-label:bar.settings.aria">
+          <img id="barThumb" alt="" hidden>
+          <span class="tx"><span class="t1" id="barT1"></span><span class="t2" id="barT2"></span></span>
+          <span class="gear" data-i18n="bar.settings"></span>
+        </button>
+        <button class="start sm" id="btnRun2" data-i18n="run.go"></button>
+      </div>
+      <div class="dk" id="dkWash" hidden>
+        <div class="big" id="wTitle"></div>
+        <div class="hint" id="wSub"></div>
+        <ol class="steps" id="washSteps"><li data-i18n="step.send"></li><li data-i18n="step.queue"></li><li data-i18n="step.run"></li><li data-i18n="step.done"></li></ol>
+        <button class="link" id="btnHist2" data-i18n="wash.hist"></button>
+      </div>
+      <div class="dk done" id="dkDone" hidden></div>
+      <div class="dk err" id="dkErr" hidden></div>
+    </section>
+  </main>
+</div>
+
+<!-- Bảng cài đặt: bảng điều khiển của máy giặt, phóng to ra từ đúng vị trí màn hình trên máy -->
+<div class="scrim" id="scrim" hidden></div>
+<div class="panelwrap" id="panelwrap" hidden>
+  <section class="panel" id="panel" role="dialog" aria-modal="true" aria-labelledby="panelTitle" tabindex="-1">
+    <div class="pstrip">
+      <div class="pdrawer" aria-hidden="true"><i></i><i></i><i></i></div>
+      <div class="plcd2" id="plcd2"><div class="l1" id="panelTitle" data-i18n="panel.title"></div><div class="l2" id="pInfo"></div></div>
+      <button class="pclose" id="panelClose" data-i18n-attr="aria-label:panel.close">✕</button>
+    </div>
+    <ol class="psteps" id="psteps">
+      <li data-s="1"><button type="button"><span class="n">1</span><span class="tx"><span class="t" data-i18n="step.video"></span><span class="sm" id="st1"></span></span></button></li>
+      <li data-s="2"><button type="button"><span class="n">2</span><span class="tx"><span class="t" data-i18n="step.led"></span><span class="sm" id="st2"></span></span></button></li>
+      <li data-s="3"><button type="button"><span class="n">3</span><span class="tx"><span class="t" data-i18n="step.wash"></span><span class="sm" id="st3"></span></span></button></li>
+    </ol>
+    <div class="pbody">
+      <div class="pcol">
+        <div class="sec" id="sec1" style="--d:.12s">
+          <h3><span class="num">1</span><span data-i18n="sec.video"></span></h3>
+          <div class="vgrid" id="videoList"></div>
+        </div>
+        <div class="sec" id="sec2" style="--d:.2s">
+          <h3><span class="num">2</span><span data-i18n="sec.led"></span></h3>
+          <div class="screens" id="presets"></div>
+          <div class="custom" id="customBox" hidden>
+            <input type="text" id="cName" data-i18n-attr="placeholder:led.name;aria-label:led.name">
+            <input type="number" id="cW" data-i18n-attr="placeholder:led.w;aria-label:led.w">
+            <input type="number" id="cH" data-i18n-attr="placeholder:led.h;aria-label:led.h">
+            <button class="btn" id="btnCustom" data-i18n="led.add"></button>
+          </div>
+          <div class="pvbox"><canvas id="pv" width="640" height="232" data-i18n-attr="aria-label:pv.aria"></canvas><div class="pvcap" id="pvCap"></div></div>
+        </div>
+      </div>
+      <div class="pcol">
+        <div class="sec" id="sec3" style="--d:.28s">
+          <h3><span class="num">3</span><span data-i18n="sec.wash"></span></h3>
+          <div class="bottles" id="modes" role="radiogroup">
+            <label class="bottle" style="--c:#4cc3f5"><input type="radio" name="mode" value="quick"><span class="bc"><span class="bt"><i class="cap"></i><i class="bd"></i></span><b data-i18n="mode.quick"></b><small data-i18n="mode.quick.desc"></small><span class="mt"><span class="r"><span data-i18n="meter.speed"></span><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i></span></span><span class="r"><span data-i18n="meter.quality"></span><span class="dots"><i class="on"></i><i></i><i></i></span></span></span></span></label>
+            <label class="bottle" style="--c:#3a86f0"><input type="radio" name="mode" value="normal" checked><span class="bc"><span class="bt"><i class="cap"></i><i class="bd"></i></span><b data-i18n="mode.normal"></b><small data-i18n="mode.normal.desc"></small><span class="mt"><span class="r"><span data-i18n="meter.speed"></span><span class="dots"><i class="on"></i><i class="on"></i><i></i></span></span><span class="r"><span data-i18n="meter.quality"></span><span class="dots"><i class="on"></i><i class="on"></i><i></i></span></span></span></span></label>
+            <label class="bottle" style="--c:#f5b52e"><input type="radio" name="mode" value="deep"><span class="bc"><span class="bt"><i class="cap"></i><i class="bd"></i></span><b data-i18n="mode.deep"></b><small data-i18n="mode.deep.desc"></small><span class="mt"><span class="r"><span data-i18n="meter.speed"></span><span class="dots"><i class="on"></i><i></i><i></i></span></span><span class="r"><span data-i18n="meter.quality"></span><span class="dots"><i class="on"></i><i class="on"></i><i class="on"></i></span></span></span></span></label>
+          </div>
+        </div>
+        <label class="sw trial" style="--d:.34s"><input type="checkbox" id="testOn"><i></i><span class="tx"><b id="trialTitle"></b><small data-i18n="trial.sub"></small></span><span id="testV" hidden>2s</span></label>
+        <div class="alerts" id="alerts"></div>
+        <div id="upNote" class="upnote" hidden></div>
+      </div>
+    </div>
+    <div class="pfoot">
+      <div class="pbot" id="pMascot" aria-hidden="true"></div>
+      <div class="info"><div class="runSum" id="runSum"></div><div class="pmsg" id="panelMsg" role="alert"></div></div>
+      <button class="start" id="btnRun" data-i18n="run.go"></button>
+    </div>
+  </section>
+</div>
+
+<!-- Xem video đã resize: tấm vải được kẹp trên dây phơi -->
+<div class="vscrim" id="vscrim" hidden></div>
+<div class="viewwrap" id="viewwrap" hidden>
+  <section class="viewer" id="viewer" role="dialog" aria-modal="true" aria-labelledby="vwTitle" tabindex="-1">
+    <i class="rope" aria-hidden="true"></i><i class="pin a" aria-hidden="true"></i><i class="pin b" aria-hidden="true"></i>
+    <div class="vhead"><h2 id="vwTitle"></h2><button class="pclose" id="vwClose" data-i18n-attr="aria-label:view.close">✕</button></div>
+    <div class="vbody">
+      <div class="vwstage"><video id="vwVideo" controls playsinline muted loop preload="metadata"></video><div id="vwEmpty" hidden></div></div>
+      <div class="vwtabs" id="vwTabs"></div>
+      <div class="vwmeta" id="vwMeta"></div>
+    </div>
+    <div class="vfoot"><button class="btn sec" id="vwCopy" data-i18n="view.copy"></button><a class="btn sec" id="vwKaggle" target="_blank" rel="noopener" data-i18n="view.kaggle"></a></div>
+  </section>
+</div>
+
+<aside class="drawer" id="history" hidden>
+  <h2>🧺 <span data-i18n="hist.title"></span> <span class="hint" id="jobsMeta"></span>
+    <span class="sp"><button class="btn sec" id="btnRefresh" data-i18n="hist.refresh"></button><button class="btn sec" id="btnClose" data-i18n-attr="aria-label:hist.close">✕</button></span></h2>
+  <div id="jobs"></div>
+  <p><button class="btn sec" id="btnSync" data-i18n="hist.sync"></button></p>
+</aside>
+
+<!-- Cài đặt nâng cao + kết nối trực tiếp (token): ẩn với người dùng thường. Mở bằng cách thêm ?pro vào địa chỉ trang. -->
+<section id="pro" hidden>
+  <div class="card pro-card" style="margin-bottom:14px">
+    <h2>Direct connection (no relay)</h2>
+    <p class="hint">Normal users just press the plug. Developers without a relay can paste a GitHub token here. <span id="connInfo"></span></p>
     <div class="row">
-      <div><label for="srcW">Rộng nguồn (px, để xem trước)</label><input type="number" id="srcW" value="640"></div>
-      <div><label for="srcH">Cao nguồn (px)</label><input type="number" id="srcH" value="392"></div>
-      <div><label for="srcDur">Thời lượng (giây)</label><input type="number" id="srcDur" value="84"></div>
-      <div><label for="srcFps">fps</label><input type="number" id="srcFps" value="24"></div>
+      <div><label class="f" for="repo">Repo (owner/name)</label><input type="text" id="repo" placeholder="owner/led-resize" autocomplete="off"></div>
+      <div><label class="f" for="token">GitHub token (Actions: write)</label><input type="password" id="token" placeholder="github_pat_..." autocomplete="off"></div>
     </div>
-    <p class="hint">Kích thước thật được đọc tự động trên Kaggle; các ô trên chỉ để xem trước và ước tính. Thêm video mới vào dataset: <code>bash runner/add_video.sh /đường/dẫn/video.mp4</code> (chạy trên máy bạn).</p>
+    <div class="row" style="margin-top:10px"><button class="btn" id="btnSaveConn">Save &amp; plug in</button><button class="btn sec" id="btnForget">Forget token</button></div>
   </div>
-
   <div class="card">
-    <h2><span class="n">2</span> Kích thước đầu ra</h2>
-    <div class="chips" id="presets"></div>
-    <div class="row" style="margin-top:8px">
-      <div><label for="cName">Tên (tuỳ chọn)</label><input type="text" id="cName" placeholder="vd: lobby"></div>
-      <div><label for="cW">Rộng (px)</label><input type="number" id="cW" placeholder="4128"></div>
-      <div><label for="cH">Cao (px)</label><input type="number" id="cH" placeholder="1290"></div>
-      <div style="flex:0 0 90px"><label>&nbsp;</label><button class="btn" id="btnCustom" style="width:100%">+ Thêm</button></div>
-    </div>
-    <div class="sizes" id="sizes"></div>
-    <label for="scale">Cỡ video trong khung: <b id="scaleV">100%</b></label>
-    <input type="range" id="scale" min="40" max="100" value="100">
-    <p class="hint">100% = video lớn tối đa trong khung (không kéo giãn); nhỏ hơn thì AI vẽ nhiều hơn quanh video.</p>
-  </div>
-
-  <div class="card">
-    <h2><span class="n">3</span> AI &amp; GPU</h2>
+    <h2>Pro settings</h2>
     <div class="row">
-      <div><label>Engine</label>
-        <div class="seg" id="engineSeg"><button data-v="wan" class="on">AI (Wan VACE)</button><button data-v="blur">Làm mờ (rẻ, để thử)</button></div>
-      </div>
-      <div><label>Model</label>
-        <div class="seg" id="modelSeg"><button data-v="1.3b" class="on">1.3B</button><button data-v="14b">14B</button></div>
-      </div>
+      <div><label class="f" for="gpu">GPU Kaggle</label><select id="gpu"></select></div>
+      <div><label class="f" for="dtype">dtype</label><select id="dtype"><option value="auto">auto</option><option value="fp16">fp16</option><option value="bf16">bf16</option></select></div>
     </div>
-    <div class="row">
-      <div><label for="gpu">GPU Kaggle</label><select id="gpu"></select></div>
-      <div><label for="dtype">Độ chính xác</label>
-        <select id="dtype"><option value="auto">Tự động (khuyến nghị)</option><option value="fp16">fp16</option><option value="bf16">bf16</option></select></div>
-    </div>
-    <input type="text" id="gpuCustom" placeholder="Nhập ID accelerator khác (vd: NvidiaTeslaA100)" style="display:none;margin-top:6px">
+    <input type="text" id="gpuCustom" placeholder="accelerator ID" style="display:none;margin-top:8px">
     <p class="hint" id="gpuNote"></p>
     <div class="row">
-      <div><label for="mpx">Chất lượng canvas AI: <b id="mpxV"></b></label><input type="range" id="mpx" min="0.2" max="1.2" step="0.05" value="0.5"></div>
-      <div><label for="steps">Số bước: <b id="stepsV"></b></label><input type="range" id="steps" min="8" max="50" step="1" value="25"></div>
+      <div><label class="f" for="mpx">AI canvas: <b id="mpxV"></b></label><input type="range" id="mpx" min="0.2" max="1.2" step="0.05" value="0.5"></div>
+      <div><label class="f" for="steps">Steps: <b id="stepsV"></b></label><input type="range" id="steps" min="8" max="50" step="1" value="25"></div>
+      <div><label class="f" for="scale">Video size: <b id="scaleV"></b></label><input type="range" id="scale" min="40" max="100" value="100"></div>
     </div>
     <div class="row">
-      <div><label for="stride">Stride (1 = vẽ mọi frame, 2 = nhanh gấp đôi)</label>
-        <select id="stride"><option>1</option><option>2</option><option>3</option></select></div>
-      <div><label for="guidance">Guidance</label><input type="number" id="guidance" value="5" step="0.5"></div>
-      <div><label for="seed">Seed</label><input type="number" id="seed" value="42"></div>
+      <div><label class="f" for="stride">Stride</label><select id="stride"><option>1</option><option>2</option><option>3</option></select></div>
+      <div><label class="f" for="guidance">Guidance</label><input type="number" id="guidance" value="5" step="0.5"></div>
+      <div><label class="f" for="seed">Seed</label><input type="number" id="seed" value="42"></div>
     </div>
-    <label for="prompt">Prompt mô tả cảnh (giúp AI vẽ đúng phong cách)</label>
-    <textarea id="prompt"></textarea>
-    <div class="chips" id="promptPresets" style="margin-top:6px"></div>
+    <label class="f" for="prompt">Scene prompt</label><textarea id="prompt" style="min-height:70px"></textarea>
+    <div class="chips" id="promptPresets" style="margin-top:8px"></div>
     <div class="row">
-      <div><label for="testSec">Chạy thử N giây đầu (0 = cả video)</label><input type="number" id="testSec" value="2" min="0"></div>
-      <div><label for="timeout">Giới hạn thời gian (giờ, tối đa 12)</label><input type="number" id="timeout" value="11" step="0.5" min="0.2" max="12"></div>
-      <div><label for="resume">Tiếp tục từ job cũ</label><select id="resume"><option value="">(không)</option></select></div>
+      <div><label class="f" for="testSec">Test first N seconds (0 = full)</label><input type="number" id="testSec" value="2" min="0"></div>
+      <div><label class="f" for="timeout">Timeout h (≤12)</label><input type="number" id="timeout" value="11" step="0.5" min="0.2" max="12"></div>
+      <div><label class="f" for="resume">Resume from job</label><select id="resume"><option value="">(none)</option></select></div>
     </div>
-  </div>
- </div>
-
- <div class="col sticky">
-  <div class="card">
-    <h2>👁 Xem trước bố cục</h2>
-    <canvas id="pv" width="640" height="260"></canvas>
-    <div class="kv" id="pvInfo"></div>
-  </div>
-
-  <div class="card">
-    <h2>⏱ Ước tính</h2>
     <div class="row">
-      <div><label for="secChunk">Giây / chunk (đo từ lần chạy thử)</label><input type="number" id="secChunk" value="300" min="1"></div>
-      <div><label for="nWorkers">GPU chạy song song</label><input type="number" id="nWorkers" value="2" min="1" max="8"></div>
-      <div><label for="nShots">Số cảnh (ước tính)</label><input type="number" id="nShots" value="1" min="1"></div>
-      <div><label for="quota">Hạn mức giờ GPU/tuần</label><input type="number" id="quota" value="30"></div>
+      <div><label class="f" for="srcW">Source W</label><input type="number" id="srcW" value="640"></div>
+      <div><label class="f" for="srcH">Source H</label><input type="number" id="srcH" value="392"></div>
+      <div><label class="f" for="srcDur">Duration (s)</label><input type="number" id="srcDur" value="84"></div>
+      <div><label class="f" for="srcFps">fps</label><input type="number" id="srcFps" value="24"></div>
     </div>
-    <div class="kv" id="est"></div>
-    <div class="bar"><i id="estBar"></i></div>
-    <p class="hint" id="estNote"></p>
-  </div>
-
-  <div class="card">
-    <button class="btn big" id="btnRun">🚀 Chạy trên Kaggle</button>
-    <div class="row" style="margin-top:8px">
-      <button class="btn sec" id="btnJson">Xem job JSON</button>
-      <button class="btn sec" id="btnDl">Tải job.json</button>
+    <div class="row">
+      <div><label class="f" for="secChunk">Sec / chunk</label><input type="number" id="secChunk" value="300" min="1"></div>
+      <div><label class="f" for="nWorkers">Parallel GPUs</label><input type="number" id="nWorkers" value="2" min="1" max="8"></div>
+      <div><label class="f" for="nShots">Shots</label><input type="number" id="nShots" value="1" min="1"></div>
+      <div><label class="f" for="quota">Weekly GPU quota (h)</label><input type="number" id="quota" value="30"></div>
     </div>
-    <pre id="jsonView" style="display:none"></pre>
+    <div class="row" style="margin-top:12px"><div><label class="f" for="vidManual">Add a dataset file name</label><input type="text" id="vidManual" placeholder="e.g. fanta.mp4"></div>
+      <button class="btn sec" id="btnVidAdd" style="flex:0 0 80px;align-self:end">Add</button>
+      <button class="btn sec" id="btnJson" style="flex:0 0 120px;align-self:end">View JSON</button><button class="btn sec" id="btnDl" style="flex:0 0 120px;align-self:end">job.json</button></div>
+    <pre id="jsonView" style="display:none;margin:10px 0 0;background:#000;border:1px solid var(--line);border-radius:8px;padding:8px;font-size:11px;overflow:auto;max-height:240px"></pre>
   </div>
- </div>
-</div>
+</section>
+<div id="toast" role="status"></div>
 
-<div class="wrap" style="grid-template-columns:1fr;padding-top:0">
-  <div class="card">
-    <h2>📋 Các job <span class="hint" id="jobsMeta"></span>
-      <span style="margin-left:auto;display:flex;gap:6px"><button class="btn sec" id="btnRefresh">Làm mới</button><button class="btn sec" id="btnSync">Đồng bộ trạng thái Kaggle</button></span></h2>
-    <div id="jobs"><p class="hint">Chưa có job nào.</p></div>
-  </div>
-</div>
-<div id="toast"></div>
-
-<script>
-(function(){
-"use strict";
-/* ===================== hằng số ===================== */
-var PRESETS=[
- {name:"townhall",label:"Town Hall LED",w:4128,h:1290},
- {name:"cafeteria",label:"Cafeteria LED",w:3784,h:774},
- {name:"tv75",label:'TV 75"',w:3840,h:2160},
- {name:"fullhd",label:"Full HD",w:1920,h:1080},
- {name:"doc916",label:"Dọc 9:16",w:1080,h:1920},
- {name:"vuong",label:"Vuông 1:1",w:1080,h:1080},
- {name:"ultrawide",label:"Ultra-wide 21:9",w:2560,h:1080}
-];
-var GPUS=[
- {id:"NvidiaTeslaT4",label:"T4 (16GB, thường x2)",workers:2,vram:16,note:"Phổ biến, miễn phí. Không có bf16 gốc nên dùng fp16 (có thể lỗi NaN)."},
- {id:"NvidiaTeslaT4Highmem",label:"T4 Highmem",workers:2,vram:16,note:"Như T4 nhưng nhiều RAM hệ thống hơn."},
- {id:"NvidiaL4",label:"L4 (24GB)",workers:1,vram:24,note:"Hỗ trợ bf16."},
- {id:"NvidiaL4X1",label:"L4 x1 (24GB)",workers:1,vram:24,note:"Hỗ trợ bf16."},
- {id:"NvidiaTeslaA100",label:"A100 (40/80GB)",workers:1,vram:40,note:"Nhanh, bf16. Có thể chỉ mở cho một số tài khoản/cuộc thi."},
- {id:"NvidiaH100",label:"H100 (80GB)",workers:1,vram:80,note:"Rất nhanh, bf16. Thường bị giới hạn quyền."},
- {id:"NvidiaRtxPro6000",label:"RTX Pro 6000 (96GB)",workers:1,vram:96,note:"VRAM lớn, bf16. Có thể bị giới hạn quyền."},
- {id:"NvidiaTeslaP100",label:"P100 (16GB) - không khuyến nghị",workers:1,vram:16,note:"Kaggle cảnh báo: PyTorch mặc định không dùng được P100."},
- {id:"custom",label:"Khác (nhập ID)...",workers:1,vram:16,note:"Nhập đúng ID accelerator theo tài liệu Kaggle CLI."}
-];
-var PROMPTS=[
- {label:"Hoạt hình 3D (CIDER)",text:"Seamless wide cinematic extension of the same scene, identical lighting, color grading, depth of field and 3D rendered toy-like art style, soft golden bokeh lights on a dark background, continuous background, no text, no logos, no borders"},
- {label:"Ornament vàng (FANTA)",text:"Seamless wide extension of an elegant golden Christmas ornament scene on pure black background, sparkling gold light particles, photorealistic, continuous background, no text, no logos, no borders"},
- {label:"Chung chung",text:"Seamless extension of the same scene, identical lighting, color grading and art style, continuous background, no text, no logos, no borders"}
-];
-var CHUNK=81, OVERLAP=16;
-
-/* ===================== hình học (giống hệt runner/worker.py) ===================== */
-function even(x){return Math.max(2,Math.round(x/2)*2);}
-function pyRound(x){var r=Math.round(x);if(Math.abs(x%1)===0.5&&r%2!==0)r-=1;return r;} // làm tròn kiểu Python (về số chẵn)
-function evenPy(x){return Math.max(2,pyRound(x/2)*2);}
-function layout(sw,sh,W,H,scale){
-  scale=scale||1;var s=Math.min(W/sw,H/sh)*scale;
-  var cw=Math.min(evenPy(sw*s),W),ch=Math.min(evenPy(sh*s),H);
-  return {cw:cw,ch:ch,x0:Math.floor((W-cw)/2),y0:Math.floor((H-ch)/2)};
-}
-function autoGen(W,H,mpx){
-  var aspect=W/H,target=mpx*1e6,gh0=Math.floor(Math.sqrt(target/aspect)/16)*16,best=null;
-  for(var gh=Math.max(64,gh0-96);gh<gh0+112;gh+=16){
-    var gw=Math.max(64,pyRound(gh*aspect/16)*16),area=gw*gh;
-    if(area<0.6*target||area>1.5*target)continue;
-    var err=Math.abs(gw/gh-aspect)/aspect,k0=Math.round(err*1e4)/1e4,k1=Math.abs(area-target);
-    if(!best||k0<best.k0||(k0===best.k0&&k1<best.k1))best={k0:k0,k1:k1,gw:gw,gh:gh};
-  }
-  if(!best){var gh2=Math.max(64,pyRound(gh0/16)*16);return [Math.max(64,pyRound(gh2*aspect/16)*16),gh2];}
-  return [best.gw,best.gh];
-}
-function genRect(fr,W,H,gw,gh){
-  var gcw=fr.cw>=W?gw:Math.min(evenPy(fr.cw*gw/W),gw),gch=fr.ch>=H?gh:Math.min(evenPy(fr.ch*gh/H),gh);
-  return {cw:gcw,ch:gch,x0:Math.floor((gw-gcw)/2),y0:Math.floor((gh-gch)/2)};
-}
-function chunkCount(n,hasCtx,stride,chunk){
-  chunk=chunk||CHUNK;var m=stride<=1?n:Math.ceil(n/stride)+1;if(hasCtx)m+=OVERLAP;
-  return m<=chunk?1:1+Math.ceil((m-chunk)/(chunk-OVERLAP));
-}
-function slug(s){return String(s).normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\u0111/g,"d").replace(/\u0110/g,"d").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"");}
-
-/* ===================== trạng thái ===================== */
-var S={sizes:[],videos:{},selSize:0,engine:"wan",model:"1.3b",jobs:[],videoList:[],defaultBranch:"main",busy:false,timer:null};
-var $=function(id){return document.getElementById(id);};
-var LS=(function(){try{window.localStorage.setItem("t","1");window.localStorage.removeItem("t");return window.localStorage;}catch(e){var m={};return{getItem:function(k){return m[k]||null;},setItem:function(k,v){m[k]=String(v);},removeItem:function(k){delete m[k];}};}})();
-
-function toast(msg,kind){var t=$("toast");t.textContent=msg;t.className="show "+(kind||"");clearTimeout(toast._t);toast._t=setTimeout(function(){t.className="";},kind==="bad"?9000:4500);}
-function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
-
-/* ===================== giao diện: kích thước ===================== */
-function addSize(name,w,h){
-  w=Math.round(+w);h=Math.round(+h);
-  if(!(w>=64&&w<=16384&&h>=64&&h<=16384)){toast("Kích thước phải trong khoảng 64–16384 px","bad");return;}
-  name=slug(name||(w+"x"+h))||(w+"x"+h);
-  var base=name,i=2;while(S.sizes.some(function(s){return s.name===name;})){name=base+"-"+i++;}
-  S.sizes.push({name:name,w:w,h:h});S.selSize=S.sizes.length-1;renderSizes();update();
-}
-function renderPresets(){
-  $("presets").innerHTML=PRESETS.map(function(p,i){return '<button class="chip" data-i="'+i+'">'+esc(p.label)+' <small>'+p.w+'×'+p.h+'</small></button>';}).join("");
-  $("presets").onclick=function(e){var b=e.target.closest("button");if(!b)return;var p=PRESETS[+b.dataset.i];addSize(p.name,p.w,p.h);};
-}
-function srcSize(){return {w:Math.max(16,+$("srcW").value||640),h:Math.max(16,+$("srcH").value||392)};}
-function info(sz){
-  var src=srcSize(),sc=(+$("scale").value||100)/100,fr=layout(src.w,src.h,sz.w,sz.h,sc),g=autoGen(sz.w,sz.h,+$("mpx").value);
-  var gr=genRect(fr,sz.w,sz.h,g[0],g[1]),pass=fr.cw>=sz.w&&fr.ch>=sz.h;
-  return {fr:fr,g:g,gr:gr,pass:pass,fill:1-(fr.cw*fr.ch)/(sz.w*sz.h),tokens:(g[0]/16)*(g[1]/16)};
-}
-function renderSizes(){
-  var h=S.sizes.map(function(s,i){
-    var f=info(s);
-    return '<div class="size'+(i===S.selSize?' sel':'')+'" data-i="'+i+'"><div><b>'+esc(s.name)+'</b> '+s.w+'×'+s.h+' <small>(tỉ lệ '+(s.w/s.h).toFixed(2)+':1)</small><br><small>canvas AI '+f.g[0]+'×'+f.g[1]+' · AI vẽ '+Math.round(f.fill*100)+'% khung'+(f.pass?' · khớp tỉ lệ, không cần vẽ thêm':'')+'</small></div><button class="x" data-del="'+i+'" title="Xoá">✕</button></div>';
-  }).join("");
-  $("sizes").innerHTML=h||'<p class="hint">Chọn một kích thước có sẵn hoặc nhập kích thước tuỳ ý.</p>';
-}
-$("sizes").addEventListener("click",function(e){
-  var d=e.target.closest("[data-del]");
-  if(d){S.sizes.splice(+d.dataset.del,1);S.selSize=Math.max(0,Math.min(S.selSize,S.sizes.length-1));renderSizes();update();return;}
-  var z=e.target.closest(".size");if(z){S.selSize=+z.dataset.i;renderSizes();update();}
-});
-
-/* ===================== xem trước ===================== */
-function drawPreview(){
-  var cv=$("pv"),ctx=cv.getContext&&cv.getContext("2d");
-  var sz=S.sizes[S.selSize];
-  var box=$("pvInfo");
-  if(!sz){box.innerHTML='<span>Chưa chọn kích thước</span><span></span>';if(ctx){ctx.clearRect(0,0,cv.width,cv.height);}return;}
-  var f=info(sz);
-  var dpr=window.devicePixelRatio||1,cssW=cv.clientWidth||640,maxH=260;
-  var ar=sz.w/sz.h,cw=cssW,chh=cssW/ar;if(chh>maxH){chh=maxH;cw=maxH*ar;}
-  cv.width=Math.round(cssW*dpr);cv.height=Math.round(maxH*dpr);
-  if(ctx){
-    ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,cssW,maxH);
-    var ox=(cssW-cw)/2,oy=(maxH-chh)/2,k=cw/sz.w;
-    ctx.fillStyle="#1d2b44";ctx.fillRect(ox,oy,cw,chh);
-    ctx.save();ctx.beginPath();ctx.rect(ox,oy,cw,chh);ctx.clip();
-    ctx.strokeStyle="rgba(79,157,255,.35)";ctx.lineWidth=1;
-    for(var i=-chh;i<cw;i+=9){ctx.beginPath();ctx.moveTo(ox+i,oy+chh);ctx.lineTo(ox+i+chh,oy);ctx.stroke();}
-    ctx.restore();
-    ctx.fillStyle="#2e7d5b";ctx.fillRect(ox+f.fr.x0*k,oy+f.fr.y0*k,f.fr.cw*k,f.fr.ch*k);
-    ctx.strokeStyle="#7ee0b5";ctx.lineWidth=2;ctx.strokeRect(ox+f.fr.x0*k,oy+f.fr.y0*k,f.fr.cw*k,f.fr.ch*k);
-    ctx.fillStyle="#e6edf3";ctx.font="12px system-ui";ctx.textAlign="center";
-    ctx.fillText("video nguồn "+f.fr.cw+"×"+f.fr.ch,ox+(f.fr.x0+f.fr.cw/2)*k,oy+(f.fr.y0+f.fr.ch/2)*k);
-    if(!f.pass){ctx.fillStyle="#8fb8ff";ctx.fillText("AI vẽ thêm",ox+cw/2,oy+14);}
-    ctx.strokeStyle="#4f9dff";ctx.lineWidth=1;ctx.strokeRect(ox,oy,cw,chh);
-  }
-  box.innerHTML=kv([["Đầu ra",sz.w+"×"+sz.h],["Video trong khung",f.fr.cw+"×"+f.fr.ch+" tại ("+f.fr.x0+", "+f.fr.y0+")"],["Canvas AI",f.g[0]+"×"+f.g[1]+" ("+(f.g[0]*f.g[1]/1e6).toFixed(2)+" MP)"],["Token / frame",String(f.tokens)],["Vùng AI vẽ",Math.round(f.fill*100)+"% khung"]]);
-}
-function kv(a){return a.map(function(r){return "<span>"+esc(r[0])+"</span><span>"+esc(r[1])+"</span>";}).join("");}
-
-/* ===================== GPU / engine ===================== */
-function gpuObj(){var id=$("gpu").value;return GPUS.filter(function(g){return g.id===id;})[0]||GPUS[0];}
-function accelerator(){var g=gpuObj();return g.id==="custom"?($("gpuCustom").value.trim()||"NvidiaTeslaT4"):g.id;}
-function renderGpu(){
-  $("gpu").innerHTML=GPUS.map(function(g){return '<option value="'+g.id+'">'+esc(g.label)+'</option>';}).join("");
-  PROMPTS.forEach(function(){});
-  $("promptPresets").innerHTML=PROMPTS.map(function(p,i){return '<button class="chip" data-p="'+i+'">'+esc(p.label)+'</button>';}).join("");
-  $("promptPresets").onclick=function(e){var b=e.target.closest("button");if(b){$("prompt").value=PROMPTS[+b.dataset.p].text;update();}};
-}
-function seg(id,key){
-  $(id).addEventListener("click",function(e){var b=e.target.closest("button");if(!b)return;S[key]=b.dataset.v;
-    Array.prototype.forEach.call($(id).children,function(c){c.classList.toggle("on",c===b);});update();});
-}
-function setSeg(id,key,val){S[key]=val;Array.prototype.forEach.call($(id).children,function(c){c.classList.toggle("on",c.dataset.v===val);});}
-
-/* ===================== ước tính ===================== */
-function selectedVideos(){return Object.keys(S.videos).filter(function(k){return S.videos[k];});}
-function estimate(){
-  var test=+$("testSec").value||0,dur=+$("srcDur").value||0,fps=+$("srcFps").value||24;
-  var secs=test>0?Math.min(test,dur||test):dur,frames=Math.ceil(secs*fps),shots=Math.max(1,+$("nShots").value||1);
-  var stride=+$("stride").value||1,vids=Math.max(1,selectedVideos().length),per=0;
-  S.sizes.forEach(function(s){var f=info(s);if(f.pass)return;per+=shots*chunkCount(Math.ceil(frames/shots),false,stride,CHUNK);});
-  var chunks=per*vids,sec=+$("secChunk").value||0,w=Math.max(1,+$("nWorkers").value||1);
-  var wall=chunks*sec/w/3600,gpuh=wall*(S.engine==="wan"?1:0),quota=+$("quota").value||30;
-  return {frames:frames,chunks:chunks,wallH:wall,quotaPct:quota?wall/quota:0,quota:quota};
-}
-function renderEstimate(){
-  var e=estimate();
-  $("est").innerHTML=kv([["Số frame / video",String(e.frames)],["Tổng chunk (ước tính)",String(e.chunks)],["Thời gian chạy",e.wallH<1?Math.round(e.wallH*60)+" phút":e.wallH.toFixed(1)+" giờ"],["So với hạn mức tuần",Math.round(e.quotaPct*100)+"% của "+e.quota+" giờ"]]);
-  var b=$("estBar");b.style.width=Math.min(100,e.quotaPct*100)+"%";b.style.background=e.quotaPct>1?"var(--bad)":e.quotaPct>.6?"var(--warn)":"var(--ok)";
-  var notes=[];
-  if(e.quotaPct>1)notes.push("Vượt hạn mức GPU tuần: giảm stride/số bước/chất lượng, hoặc chia thành nhiều job.");
-  if(S.engine==="wan"&&!(+$("testSec").value>0))notes.push("Đang chạy cả video. Nên chạy thử vài giây trước để đo giây/chunk.");
-  if(S.model==="14b"&&gpuObj().vram<40)notes.push("Model 14B cần GPU từ ~40GB VRAM; GPU đã chọn có thể không đủ.");
-  if(gpuObj().id==="NvidiaTeslaT4"&&$("dtype").value==="bf16")notes.push("T4 không có bf16 gốc: bf16 sẽ chạy bằng giả lập (rất chậm).");
-  $("estNote").innerHTML=notes.map(function(n){return '<span class="warn">⚠ '+esc(n)+'</span>';}).join("<br>")||"Số chunk là ước tính; con số thật in ra ở bước 'prepare' trong log Kaggle.";
-}
-
-/* ===================== job ===================== */
-function newId(){var d=new Date(),p=function(n){return String(n).padStart(2,"0");};
-  return "j"+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+"-"+p(d.getHours())+p(d.getMinutes())+p(d.getSeconds())+Math.random().toString(36).slice(2,4);}
-function buildJob(){
-  var vids=selectedVideos();
-  var dsFull=(S.dataset||"").split("/")[1]||"led-videos";
-  var job={
-    id:newId(),label:(vids.join("+")||"job")+" → "+S.sizes.map(function(s){return s.w+"x"+s.h;}).join(", "),
-    videos:vids,sizes:S.sizes.map(function(s){return {name:s.name,w:s.w,h:s.h};}),
-    engine:S.engine,model:S.model,dtype:$("dtype").value,accelerator:accelerator(),
-    steps:+$("steps").value,stride:+$("stride").value,gen_mpx:+$("mpx").value,scale:(+$("scale").value||100)/100,
-    guidance:+$("guidance").value||5,seed:+$("seed").value||0,chunk:CHUNK,prompt:$("prompt").value.trim(),
-    test_seconds:Math.max(0,+$("testSec").value||0),timeout_h:Math.min(12,Math.max(0.2,+$("timeout").value||11)),
-    resume_from:$("resume").value||"",dataset:dsFull
-  };
-  return job;
-}
-function validate(job){
-  if(!job.videos.length)return "Chọn ít nhất một video.";
-  if(!job.sizes.length)return "Thêm ít nhất một kích thước đầu ra.";
-  if(job.engine==="wan"&&!job.accelerator)return "Chọn GPU.";
-  return "";
-}
-
-/* ===================== GitHub API ===================== */
-function conn(){return {repo:($("repo").value||"").trim(),token:($("token").value||"").trim()};}
-function gh(path,opts){
-  var c=conn();opts=opts||{};opts.headers=Object.assign({"Accept":"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28"},opts.headers||{});
-  if(c.token)opts.headers.Authorization="Bearer "+c.token;
-  return fetch("https://api.github.com/repos/"+c.repo+path,opts);
-}
-function setConn(state,msg){var p=$("conn");p.className="pill "+(state||"");p.textContent=msg;}
-function checkConn(){
-  var c=conn();if(!c.repo){setConn("","chưa kết nối");return Promise.resolve(false);}
-  return gh("").then(function(r){
-    if(r.ok)return r.json().then(function(j){S.defaultBranch=j.default_branch||"main";S.canPush=!!(j.permissions&&(j.permissions.push||j.permissions.admin));
-      setConn(c.token?"ok":"","repo "+c.repo+(c.token?" ✓":" (chỉ xem)"));$("connSum").textContent="— "+c.repo;return true;});
-    setConn("bad","lỗi "+r.status);toast(r.status===404?"Không thấy repo (sai tên, hoặc token không có quyền với repo này).":"GitHub trả về lỗi "+r.status,"bad");return false;
-  }).catch(function(e){setConn("bad","không kết nối được");toast("Lỗi mạng: "+e.message,"bad");return false;});
-}
-function readJson(path,fallbackRel){
-  var c=conn();
-  if(c.repo&&c.token){
-    return gh("/contents/"+path+"?ref="+encodeURIComponent(S.defaultBranch),{headers:{"Accept":"application/vnd.github.raw+json"},cache:"no-store"})
-      .then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.json();});
-  }
-  return fetch(fallbackRel+"?t="+Date.now(),{cache:"no-store"}).then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.json();});
-}
-function loadVideos(){
-  return readJson("docs/data/videos.json","data/videos.json").then(function(j){
-    S.dataset=j.dataset||"";S.videoList=(j.videos||[]);renderVideos();
-  }).catch(function(){renderVideos();});
-}
-function renderVideos(){
-  var names=S.videoList.map(function(v){return v.name;});Object.keys(S.videos).forEach(function(k){if(names.indexOf(k)<0)names.push(k);});
-  $("videoList").innerHTML=names.map(function(n){
-    var meta=S.videoList.filter(function(v){return v.name===n;})[0];
-    return '<label><input type="checkbox" data-v="'+esc(n)+'"'+(S.videos[n]?" checked":"")+'> '+esc(n)+(meta?' <span class="hint">'+esc(meta.size)+'</span>':'')+'</label>';
-  }).join("")||'<p class="hint">Chưa thấy video nào trong dataset (hoặc chưa đồng bộ). Thêm video bằng script add_video.sh rồi bấm "Đồng bộ trạng thái Kaggle", hoặc nhập tên file bên dưới.</p>';
-}
-$("videoList").addEventListener("change",function(e){var i=e.target.closest("input");if(i){S.videos[i.dataset.v]=i.checked;update();}});
-$("btnVidAdd").onclick=function(){var n=$("vidManual").value.trim();if(!n)return;S.videos[n]=true;$("vidManual").value="";renderVideos();update();};
-
-function loadJobs(){
-  return readJson("docs/data/jobs.json","data/jobs.json").then(function(j){S.jobs=Array.isArray(j)?j:[];renderJobs();})
-    .catch(function(){renderJobs();});
-}
-function fmt(t){return t?String(t).replace("T"," ").replace("Z"," UTC"):"";}
-function renderJobs(){
-  var act=S.jobs.some(function(j){return ["submitted","queued","running"].indexOf(j.status)>=0;});
-  $("jobsMeta").textContent=S.jobs.length?("("+S.jobs.length+(act?", đang chạy — tự làm mới mỗi 30 giây":"")+")"):"";
-  $("resume").innerHTML='<option value="">(không)</option>'+S.jobs.filter(function(j){return j.kernel;}).map(function(j){return '<option value="'+esc(j.id)+'">'+esc(j.id)+' — '+esc(j.status)+'</option>';}).join("");
-  $("jobs").innerHTML=S.jobs.length?S.jobs.map(function(j){
-    var sizes=(j.sizes||[]).map(function(s){return s.w+"×"+s.h;}).join(", ");
-    var h='<div class="job"><div class="top"><b>'+esc(j.id)+'</b><span class="badge b-'+esc(j.status)+'">'+esc(j.status)+'</span><span class="hint">'+esc(j.label||"")+'</span></div>';
-    h+='<div class="meta">'+esc(sizes)+' · '+esc(j.engine||"")+' '+esc(j.model||"")+' · '+esc(j.accelerator||"")+' · bước '+esc(j.steps)+' · stride '+esc(j.stride)+(j.test_seconds?(' · thử '+j.test_seconds+'s'):'')+'<br>gửi '+esc(fmt(j.submitted_at))+(j.finished_at?(' · xong '+esc(fmt(j.finished_at))):'')+'</div>';
-    h+='<div class="acts">';
-    if(j.kernel_url)h+='<a class="btn sec" target="_blank" rel="noopener" href="'+esc(j.kernel_url)+'">Mở trên Kaggle</a>';
-    if(j.run_url)h+='<a class="btn sec" target="_blank" rel="noopener" href="'+esc(j.run_url)+'">Log GitHub</a>';
-    if(j.output_cmd)h+='<button class="btn" data-copy="'+esc(j.output_cmd)+'">Sao chép lệnh tải kết quả</button>';
-    h+='<button class="btn sec" data-reuse="'+esc(j.id)+'">Dùng lại cài đặt</button></div>';
-    if(j.status==="done")h+='<div class="hint" style="margin-top:6px">Kết quả nằm riêng tư trên Kaggle. Dán lệnh trên vào Terminal để tải về <code>~/Downloads/led_out</code>.</div>';
-    if(j.error_tail)h+='<details style="margin-top:6px"><summary>Chi tiết lỗi</summary><pre>'+esc(j.error_tail)+'</pre></details>';
-    return h+'</div>';
-  }).join(""):'<p class="hint">Chưa có job nào.</p>';
-}
-$("jobs").addEventListener("click",function(e){
-  var c=e.target.closest("[data-copy]");
-  if(c){var t=c.dataset.copy;(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(function(){toast("Đã sao chép lệnh","good");},function(){window.prompt("Sao chép lệnh:",t);});return;}
-  var r=e.target.closest("[data-reuse]");
-  if(r){var j=S.jobs.filter(function(x){return x.id===r.dataset.reuse;})[0];if(j){applyJob(j);toast("Đã nạp cài đặt của "+j.id,"good");window.scrollTo(0,0);}}
-});
-function applyJob(j){
-  S.videos={};(j.videos||[]).forEach(function(v){S.videos[v]=true;});renderVideos();
-  S.sizes=(j.sizes||[]).map(function(s){return {name:s.name,w:s.w,h:s.h};});S.selSize=0;renderSizes();
-  if(j.engine)setSeg("engineSeg","engine",j.engine);if(j.model)setSeg("modelSeg","model",j.model);
-  var g=GPUS.filter(function(x){return x.id===j.accelerator;})[0];if(g){$("gpu").value=g.id;}else if(j.accelerator&&j.accelerator!=="CPU"){$("gpu").value="custom";$("gpuCustom").value=j.accelerator;}
-  if(j.steps)$("steps").value=j.steps;if(j.stride)$("stride").value=String(j.stride);if(j.gen_mpx)$("mpx").value=j.gen_mpx;
-  if(j.scale)$("scale").value=Math.round(j.scale*100);$("testSec").value=j.test_seconds||0;update();
-}
-
-function dispatch(workflow,inputs){
-  var c=conn();
-  return gh("/actions/workflows/"+workflow+"/dispatches",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({ref:S.defaultBranch,inputs:inputs||{}})});
-}
-function explain(status){
-  return {401:"Token không hợp lệ hoặc hết hạn.",403:"Token thiếu quyền. Cần fine-grained token cho repo này với 'Actions: Read and write' và 'Contents: Read-only'.",404:"Không thấy workflow hoặc repo. Kiểm tra tên repo, và workflow submit.yml đã có trong nhánh mặc định chưa.",422:"GitHub từ chối đầu vào (nhánh sai hoặc JSON quá dài)."}[status]||("GitHub trả về lỗi "+status);
-}
-$("btnRun").onclick=function(){
-  var c=conn();if(!c.repo||!c.token){$("connDetails").open=true;toast("Cần nhập repo và GitHub token để chạy job.","bad");return;}
-  var job=buildJob(),err=validate(job);if(err){toast(err,"bad");return;}
-  var txt=JSON.stringify(job);if(txt.length>60000){toast("Job quá dài.","bad");return;}
-  $("btnRun").disabled=true;
-  dispatch("submit.yml",{job:txt}).then(function(r){
-    if(r.status===204){toast("Đã gửi job "+job.id+". Khoảng 1–2 phút nữa sẽ hiện trong danh sách.","good");pollSoon();}
-    else r.text().then(function(t){toast(explain(r.status)+" "+(t||"").slice(0,160),"bad");});
-  }).catch(function(e){toast("Lỗi mạng: "+e.message,"bad");}).then(function(){$("btnRun").disabled=false;});
-};
-$("btnSync").onclick=function(){
-  var c=conn();if(!c.repo||!c.token){toast("Cần token để đồng bộ.","bad");return;}
-  dispatch("poll.yml").then(function(r){if(r.status===204){toast("Đang đồng bộ, làm mới sau ~1 phút.","good");setTimeout(refreshAll,60000);}else toast(explain(r.status),"bad");});
-};
-$("btnRefresh").onclick=refreshAll;
-function refreshAll(){return Promise.all([loadJobs(),loadVideos()]);}
-function pollSoon(){var n=0;clearInterval(S.fast);S.fast=setInterval(function(){loadJobs();if(++n>12)clearInterval(S.fast);},15000);}
-
-/* ===================== lưu/khôi phục cài đặt ===================== */
-var FIELDS=["srcW","srcH","srcDur","srcFps","scale","mpx","steps","stride","guidance","seed","prompt","testSec","timeout","secChunk","nWorkers","nShots","quota","dtype","gpuCustom"];
-function saveSettings(){
-  var o={};FIELDS.forEach(function(f){o[f]=$(f).value;});o.gpu=$("gpu").value;o.engine=S.engine;o.model=S.model;o.sizes=S.sizes;
-  LS.setItem("led.settings",JSON.stringify(o));
-}
-function loadSettings(){
-  var o;try{o=JSON.parse(LS.getItem("led.settings")||"null");}catch(e){o=null;}
-  if(!o)return false;
-  FIELDS.forEach(function(f){if(o[f]!=null)$(f).value=o[f];});if(o.gpu)$("gpu").value=o.gpu;
-  if(o.engine)setSeg("engineSeg","engine",o.engine);if(o.model)setSeg("modelSeg","model",o.model);
-  if(Array.isArray(o.sizes)){S.sizes=o.sizes;}
-  return true;
-}
-
-/* ===================== cập nhật chung ===================== */
-function update(){
-  $("scaleV").textContent=$("scale").value+"%";$("mpxV").textContent=(+$("mpx").value).toFixed(2)+" MP";$("stepsV").textContent=$("steps").value;
-  var g=gpuObj();$("gpuNote").textContent=g.note+" (Danh sách theo tài liệu Kaggle CLI 02/2026; tài khoản của bạn có thể không có quyền với một số loại.)";
-  $("gpuCustom").style.display=g.id==="custom"?"block":"none";
-  if(!update._w||update._gpu!==g.id){update._gpu=g.id;if(update._w)$("nWorkers").value=g.workers;update._w=true;}
-  $("modelSeg").style.opacity=S.engine==="wan"?1:.4;
-  renderSizes();drawPreview();renderEstimate();saveSettings();
-}
-FIELDS.concat(["gpu"]).forEach(function(f){var el=$(f);el.addEventListener("input",update);el.addEventListener("change",update);});
-seg("engineSeg","engine");seg("modelSeg","model");
-$("btnCustom").onclick=function(){addSize($("cName").value,$("cW").value,$("cH").value);$("cName").value=$("cW").value=$("cH").value="";};
-$("btnJson").onclick=function(){var v=$("jsonView");v.style.display=v.style.display==="none"?"block":"none";v.textContent=JSON.stringify(buildJob(),null,2);};
-$("btnDl").onclick=function(){var b=new Blob([JSON.stringify(buildJob(),null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="job.json";a.click();};
-$("btnSaveConn").onclick=function(){var c=conn();LS.setItem("led.repo",c.repo);if(c.token)LS.setItem("led.token",c.token);checkConn().then(function(ok){if(ok)refreshAll();});};
-$("btnForget").onclick=function(){LS.removeItem("led.token");$("token").value="";setConn("","đã xoá token");};
-window.addEventListener("resize",drawPreview);
-
-/* ===================== khởi động ===================== */
-function init(){
-  renderPresets();renderGpu();
-  var host=location.hostname||"",m=host.match(/^([^.]+)\.github\.io$/),guess="";
-  if(m){var seg1=(location.pathname.split("/")[1]||"");guess=m[1]+"/"+(seg1||m[1]+".github.io");}
-  $("repo").value=LS.getItem("led.repo")||guess;$("token").value=LS.getItem("led.token")||"";
-  if(!loadSettings()){$("prompt").value=PROMPTS[0].text;addSize("townhall",4128,1290);}
-  else{if(!$("prompt").value)$("prompt").value=PROMPTS[0].text;renderSizes();}
-  if(!($("repo").value&&$("token").value))$("connDetails").open=true;
-  update();
-  checkConn().then(function(){return refreshAll();});
-  S.timer=setInterval(function(){if(S.jobs.some(function(j){return ["submitted","queued","running"].indexOf(j.status)>=0;}))loadJobs();},30000);
-}
-window.LED={layout:layout,autoGen:autoGen,genRect:genRect,chunkCount:chunkCount,buildJob:buildJob,estimate:estimate,state:S,slug:slug,addSize:addSize,update:update};
-init();
-})();
-</script>
+<script type="module" src="app.js"></script>
 </body>
 </html>
