@@ -4,7 +4,7 @@
   "label": "TV.mp4 → 4128x1290",
   "submitted_at": "2026-11-18T07:15:54Z",
   "run_url": "https://github.com/thnhtng/led-resize/actions/runs/44257492299",
-  "status": "running",
+  "status": "done",
   "kernel": "phcthnhtng/led-resize-j20261118-1415429p",
   "kernel_url": "https://www.kaggle.com/code/phcthnhtng/led-resize-j20261118-1415429p",
   "engine": "wan",
@@ -25,7 +25,18 @@
   "gen_mpx": 0.5,
   "scale": 1,
   "test_seconds": 2,
-  "resume_from": ""
+  "resume_from": "",
+  "finished_at": "2026-11-18T09:35:38Z",
+  "output_cmd": "kaggle kernels output phcthnhtng/led-resize-j20261118-1415429p -p ~/Downloads/led_out",
+  "previews": [
+   {
+    "label": "TV_townhall",
+    "mp4": "data/previews/j20261118-1415429p_1.mp4",
+    "jpg": "data/previews/j20261118-1415429p_1.jpg",
+    "w": 960,
+    "h": 300
+   }
+  ]
  },
  {
   "id": "j20261118061626u1",
