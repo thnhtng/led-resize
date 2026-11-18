@@ -42,6 +42,7 @@ jobs:
       - name: Đẩy job lên Kaggle
         env:
           JOB_JSON: ${{ inputs.job }}
+          FILES_SECRET: ${{ secrets.FILES_SECRET }}
         run: python runner/submit.py
 
       - name: Lưu trạng thái (jobs.json)

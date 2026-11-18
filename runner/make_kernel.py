@@ -12,6 +12,9 @@ GPU_ACCELERATORS = {"NvidiaTeslaP100", "NvidiaTeslaT4", "NvidiaTeslaT4Highmem", 
                     "NvidiaL4X1", "NvidiaH100", "NvidiaRtxPro6000"}
 
 
+UPLOAD_URL = re.compile(r"^https://[A-Za-z0-9.-]+(?::\d+)?/files/u/[0-9a-f]{32}/[A-Za-z0-9._-]{1,100}$")
+
+
 def slug(s):
     s = unicodedata.normalize("NFD", str(s))
     s = "".join(c for c in s if not unicodedata.combining(c)).replace("đ", "d").replace("Đ", "d")
@@ -29,6 +32,12 @@ def normalize(job):
     if not vids:
         raise ValueError("job không có video")
     j["videos"] = [os.path.basename(v) for v in vids]
+    ups = {}
+    for name, url in (j.get("uploads") or {}).items():
+        if name not in j["videos"] or not isinstance(url, str) or not UPLOAD_URL.match(url):
+            raise ValueError(f"địa chỉ video tải lên không hợp lệ: {name}")
+        ups[name] = url
+    j["uploads"] = ups
     sizes = []
     for s in j.get("sizes") or []:
         w, h = int(s["w"]), int(s["h"])
@@ -66,7 +75,29 @@ JOB = json.loads(r\'\'\'__JOB__\'\'\')
 WORK, OUT = "/kaggle/working/work", "/kaggle/working/out"
 os.makedirs(WORK, exist_ok=True)
 
+def fetch(url, dest):
+    import time, urllib.request
+    os.makedirs(os.path.dirname(dest), exist_ok=True)
+    for i in range(4):
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "size-washer-kernel", "Authorization": "Bearer " + JOB.get("fetch_token", "")})
+            with urllib.request.urlopen(req, timeout=120) as r, open(dest, "wb") as f:
+                while True:
+                    b = r.read(1 << 20)
+                    if not b:
+                        break
+                    f.write(b)
+            print("đã tải", os.path.basename(dest), os.path.getsize(dest), "byte", flush=True)
+            return dest
+        except Exception as e:
+            print("tải lỗi lần", i + 1, e, flush=True)
+            time.sleep(5 * (i + 1))
+    raise RuntimeError("không tải được video: " + os.path.basename(dest))
+
 def find_video(fname):
+    up = (JOB.get("uploads") or {}).get(fname)
+    if up:
+        return fetch(up, "/tmp/sw_in/" + fname)
     hits = glob.glob(f"/kaggle/input/**/{fname}", recursive=True)
     assert hits, f"Không thấy {fname} trong /kaggle/input (dataset {JOB.get('dataset')})"
     return hits[0]
@@ -76,7 +107,7 @@ def stem(n):
     return re.sub(r"[^A-Za-z0-9_-]+", "_", os.path.splitext(os.path.basename(n))[0])
 
 videos = {stem(v): find_video(v) for v in JOB["videos"]}
-cfg = dict(JOB, work=WORK, out=OUT, videos=videos, max_seconds=JOB.get("test_seconds", 0), unit_max=341, min_piece=48)
+cfg = dict({k: v for k, v in JOB.items() if k != "fetch_token"}, work=WORK, out=OUT, videos=videos, max_seconds=JOB.get("test_seconds", 0), unit_max=341, min_piece=48)
 CFG = f"{WORK}/config.json"
 json.dump(cfg, open(CFG, "w"), indent=1)
 print(json.dumps({k: cfg[k] for k in ["videos", "sizes", "engine", "model", "dtype", "steps", "stride", "gen_mpx", "scale", "max_seconds"] if k in cfg}, indent=1))
@@ -160,7 +191,12 @@ print(json.dumps(files, indent=1))
 
 def build(job, user, outdir):
     worker = open(os.path.join(HERE, "worker.py"), encoding="utf-8").read()
-    jtxt = json.dumps(job, ensure_ascii=False).replace("'''", "\\u0027\\u0027\\u0027")
+    kjob = dict(job)
+    if job.get("uploads"):  # khoá tải video chỉ nằm trong notebook riêng tư, không ghi vào jobs.json / log
+        kjob["fetch_token"] = os.environ.get("FILES_SECRET", "")
+        if not kjob["fetch_token"]:
+            raise ValueError("thiếu FILES_SECRET để kernel tải video đã upload")
+    jtxt = json.dumps(kjob, ensure_ascii=False).replace("'''", "\\u0027\\u0027\\u0027")
     cells_src = [CELL_INSTALL, CELL_CONFIG.replace("__JOB__", jtxt), CELL_WRITE.replace("__WORKER__", worker),
                  CELL_RESTORE, CELL_RUN, CELL_SUMMARY]
     cells = [{"cell_type": "code", "metadata": {}, "execution_count": None, "outputs": [],
@@ -172,9 +208,11 @@ def build(job, user, outdir):
         json.dump(nb, f, ensure_ascii=False, indent=1)
     title = f"led-resize-{job['id']}"
     ks = [f"{user}/led-resize-{slug(job['resume_from'])}"] if job.get("resume_from") else []
+    need_ds = any(v not in (job.get("uploads") or {}) for v in job["videos"])  # chỉ gắn dataset nếu có video không tải lên
+    ds = [f"{user}/{job['dataset']}"] if need_ds else []
     meta = {"id": f"{user}/{slug(title)}", "title": title, "code_file": "led-resize.ipynb", "language": "python",
             "kernel_type": "notebook", "is_private": True, "enable_gpu": job["engine"] == "wan",
-            "enable_internet": True, "dataset_sources": [f"{user}/{job['dataset']}"],
+            "enable_internet": True, "dataset_sources": ds,
             "competition_sources": [], "kernel_sources": ks, "model_sources": []}
     with open(os.path.join(outdir, "kernel-metadata.json"), "w", encoding="utf-8") as f:
         json.dump(meta, f, indent=2)

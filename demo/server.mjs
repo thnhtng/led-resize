@@ -8,12 +8,33 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
-import { sanitizeJob } from "../relay/worker.js";
+import worker, { sanitizeJob } from "../relay/worker.js";
+import { fakeR2 } from "./fake-r2.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../docs");
 const PORT = Number(process.env.PORT) || 8787;
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), "size-washer-demo-"));
 const jobs = [];
+const ORIGIN = `http://127.0.0.1:${PORT}`;
+/* trạm điện THẬT (relay/worker.js) chạy cục bộ với R2 giả: tải lên từng phần, kernel tải về bằng khoá bí mật */
+const RELAY_ENV = { GH_TOKEN: "demo", GH_REPO: "demo/demo", ALLOWED_ORIGINS: ORIGIN, FILES_SECRET: "demo-files-secret", VIDEOS: fakeR2(), MAX_UPLOAD_MB: "512", MAX_UPLOADS_PER_HOUR: "50" };
+function viaWorker(req, res, rest) {
+  const chunks = []; req.on("data", c => chunks.push(c));
+  req.on("end", async () => {
+    try {
+      const body = Buffer.concat(chunks), headers = { ...req.headers }; delete headers.host;
+      const wr = await worker.fetch(new Request(ORIGIN + rest, { method: req.method, headers, body: ["GET", "HEAD"].includes(req.method) ? undefined : body }), RELAY_ENV);
+      const out = Buffer.from(await wr.arrayBuffer()); const h = Object.fromEntries(wr.headers); delete h["content-length"];
+      res.writeHead(wr.status, h); res.end(out);
+    } catch (e) { send(res, 500, JSON.stringify({ error: String(e.message) })); }
+  });
+}
+async function checkUploads(job) {
+  for (const [name, u] of Object.entries(job.uploads || {})) {
+    const r = await worker.fetch(new Request(u, { headers: { Authorization: "Bearer " + RELAY_ENV.FILES_SECRET } }), RELAY_ENV);
+    console.log(`  ⇣ kernel (giả) tải ${name}:`, r.status, (await r.arrayBuffer()).byteLength, "byte");
+  }
+}
 const MIME = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8", ".css": "text/css", ".json": "application/json",
   ".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg", ".ico": "image/x-icon", ".mp4": "video/mp4", ".glb": "model/gltf-binary", ".md": "text/plain" };
 const hasFfmpeg = spawnSync("ffmpeg", ["-version"]).status === 0;
@@ -59,6 +80,7 @@ function file(req, res, fp) {
 http.createServer((req, res) => {
   const url = new URL(req.url, "http://x"), p = decodeURIComponent(url.pathname);
   if (p === "/config.json") return send(res, 200, JSON.stringify({ relay: `http://127.0.0.1:${PORT}/relay` }));
+  if (p.startsWith("/relay/upload/")) return viaWorker(req, res, p.slice("/relay".length) + url.search);
   if (p === "/relay/health") return send(res, 200, '{"ok":true}');
   if (p === "/relay/data/jobs" || p === "/data/jobs.json") return send(res, 200, JSON.stringify(jobs));
   if (p === "/relay/data/videos" || p === "/data/videos.json") return send(res, 200, JSON.stringify({ dataset: "demo/led-videos", videos: [] }));
@@ -68,10 +90,10 @@ http.createServer((req, res) => {
       try {
         const body = JSON.parse(raw);
         if (body.workflow === "poll.yml") return send(res, 204, "");
-        const v = sanitizeJob(JSON.parse(body.inputs.job));
+        const v = sanitizeJob(JSON.parse(body.inputs.job), ORIGIN);
         if (v.error) return send(res, 400, JSON.stringify({ error: v.error }));
         console.log("  ➜ nhận mẻ giặt:", v.job.id, v.job.videos.join(","), v.job.sizes.map(s => s.w + "x" + s.h).join(","), v.job.engine + "/" + v.job.model);
-        startJob(v.job); return send(res, 204, "");
+        checkUploads(v.job).then(() => { startJob(v.job); send(res, 204, ""); }); return;
       } catch (e) { return send(res, 400, JSON.stringify({ error: "invalid request" })); }
     });
     return;

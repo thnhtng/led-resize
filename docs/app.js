@@ -240,7 +240,7 @@ function renderEstimate(){
   var first=vids[0]?videoTitle(vids[0]):"",label=first+(vids.length>1?" +"+(vids.length-1):"");
   var szl=!S.sizes.length?t("bar.noLed"):(S.sizes.length>1?t("bar.leds",{n:S.sizes.length}):sizeLabel(S.sizes[0])+" "+S.sizes[0].w+"×"+S.sizes[0].h);
   $("barT1").textContent=label||t("bar.none");
-  $("barT2").textContent=szl+" · "+modeLabel(S.mode)+est+(ns.length||vids.some(function(k){return S.drops[k]&&!inDataset(k);})?" · ⚠":"");
+  $("barT2").textContent=szl+" · "+modeLabel(S.mode)+est+(ns.length||vids.some(function(k){return S.drops[k]&&!S.drops[k].up&&!inDataset(k);})?" · ⚠":"");
   $("st1").textContent=vids.length?label:t("step.none");
   $("st2").textContent=S.sizes.length?(S.sizes.length>1?t("bar.leds",{n:S.sizes.length}):sizeLabel(S.sizes[0])):t("step.none");
   $("st3").textContent=modeLabel(S.mode);
@@ -290,9 +290,77 @@ function applyActiveMeta(){
 }
 function addDrop(file){
   var key=dsName(file.name);
-  S.videos[key]=true;S.drops[key]={orig:file.name,bytes:file.size,probing:true};
+  cancelUpload(key);
+  S.videos[key]=true;S.drops[key]={orig:file.name,bytes:file.size,probing:true,file:file};
+  startUpload(key);
   return probeVideo(file).then(function(m){var d=S.drops[key];if(m)for(var p in m)d[p]=m[p];d.probing=false;});
 }
+/* ===================== tải video lên máy giặt (R2 qua trạm): người dùng không phải làm gì ===================== */
+function canUpload(){return !!CONFIG.relay;}
+function upErr(status,msg){return status===429?"rate limited":status===413?"too large":(msg||("HTTP "+status));}
+function relayJSON(path,body){
+  return fetchTimeout(relayURL(path),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)},20000).then(function(r){
+    return r.text().then(function(tx){var j={};try{j=JSON.parse(tx);}catch(e){}
+      if(!r.ok){var er=new Error(upErr(r.status,j.error));er.status=r.status;throw er;}return j;});});
+}
+function putPart(url,blob,onProg,up){
+  return new Promise(function(res,rej){
+    var x=new XMLHttpRequest();x.open("PUT",url);x.timeout=600000;up.xhr=x;
+    x.upload.onprogress=function(e){if(e.lengthComputable)onProg(e.loaded);};
+    x.onload=function(){var j={};try{j=JSON.parse(x.responseText);}catch(e){}
+      if(x.status>=200&&x.status<300&&j.etag)res(j);else{var er=new Error(upErr(x.status,j.error));er.status=x.status;rej(er);}};
+    x.onerror=function(){rej(new Error("network"));};x.ontimeout=function(){rej(new Error("timeout"));};
+    x.onabort=function(){rej(new Error("cancel"));};
+    x.send(blob);
+  });
+}
+function uploadFile(file,name,up){
+  return relayJSON("/upload/start",{name:name,size:file.size}).then(function(s){
+    var parts=[],i=0;
+    function next(){
+      if(up.cancel)throw new Error("cancel");
+      if(i*s.partSize>=file.size)return relayJSON("/upload/complete",{key:s.key,uploadId:s.uploadId,parts:parts});
+      var n=i+1,base=i*s.partSize,blob=file.slice(base,base+s.partSize);
+      var url=relayURL("/upload/part?key="+encodeURIComponent(s.key)+"&uploadId="+encodeURIComponent(s.uploadId)+"&n="+n);
+      function attempt(k){
+        return putPart(url,blob,function(l){up.sent=base+l;upTick();},up).catch(function(e){
+          if(up.cancel)throw new Error("cancel");
+          if(k<3&&(!e.status||e.status>=500))return new Promise(function(r){setTimeout(r,1500*k);}).then(function(){return attempt(k+1);});
+          throw e;});
+      }
+      return attempt(1).then(function(p){parts.push({partNumber:p.partNumber,etag:p.etag});i++;up.sent=Math.min(file.size,i*s.partSize);upTick();return next();});
+    }
+    return next();
+  }).then(function(c){return c.url;});
+}
+var upT=0;function upTick(){var n=Date.now();if(n-upT<250)return;upT=n;update();}
+function startUpload(key){
+  var d=S.drops[key];if(!d||!d.file||!canUpload()||!S.power)return null;
+  var up=d.up={state:"up",sent:0,total:d.file.size,url:"",err:"",cancel:false,xhr:null};
+  up.p=uploadFile(d.file,key,up).then(function(url){up.state="ok";up.url=url;d.file=null;})
+    .catch(function(e){if(up.cancel)return;up.state="err";up.err=e.message;toast(t("err.upload",{m:e.message}),"bad");sfx("error");})
+    .then(function(){update();});
+  update();return up.p;
+}
+function cancelUpload(key){var d=S.drops[key];if(d&&d.up&&d.up.state==="up"){d.up.cancel=true;try{d.up.xhr.abort();}catch(e){}}}
+function uploadPct(){
+  var tot=0,sent=0;Object.keys(S.drops).forEach(function(k){var d=S.drops[k];if(S.videos[k]&&d.up&&d.up.state==="up"){tot+=d.up.total;sent+=d.up.sent;}});
+  return tot?Math.min(99,Math.floor(sent*100/tot)):null;
+}
+/* trả về {tên: url} cho các video của mẻ giặt; đợi tải xong, thử lại video bị lỗi */
+function ensureUploads(keys){
+  var map={},ps=[];
+  keys.forEach(function(k){
+    var d=S.drops[k];if(!d||!canUpload())return;
+    function fin(){if(d.up.state!=="ok")throw new Error(d.up.err||"upload");map[k]=d.up.url;}
+    if(d.up&&d.up.state==="ok")map[k]=d.up.url;
+    else if(d.up&&d.up.state==="up")ps.push(d.up.p.then(fin));
+    else if(d.file){var p=startUpload(k);if(p)ps.push(p.then(fin));}
+  });
+  return Promise.all(ps).then(function(){return map;});
+}
+window.addEventListener("beforeunload",function(e){if(uploadPct()!==null){e.preventDefault();e.returnValue="";}});
+
 function plugNudge(){if(SCENE)SCENE.plugPulse();sayHold(t("say.needPower"));toast(t("toast.needPlug"),"bad");sfx("error");}
 function handleFiles(list){
   var files=Array.prototype.slice.call(list||[]);if(!files.length)return;
@@ -348,7 +416,7 @@ $("pullBox").addEventListener("click",function(e){
 function takeOut(key){
   var shown=S.drops[key]&&S.drops[key]===activeDrop();
   $("pullBox").hidden=true;S.pullOpen=false;
-  function done(){delete S.videos[key];delete S.drops[key];S.hold=0;sayHold(t("say.pulled"));sfx("tick");update();}
+  function done(){cancelUpload(key);delete S.videos[key];delete S.drops[key];S.hold=0;sayHold(t("say.pulled"));sfx("tick");update();}
   if(SCENE&&shown&&SCENE.hasCloth())SCENE.pullOut(done);
   else{if(SCENE)SCENE.openDoor(false);done();}
 }
@@ -359,13 +427,14 @@ function renderVideos(){
   var html=names.map(function(n){
     var meta=S.videoList.filter(function(v){return v.name===n;})[0],d=S.drops[n],title=d?d.orig:n;
     var sub=d?(d.probing?t("video.read"):(d.w?d.w+"×"+d.h+(d.dur?" · "+secsLabel(d.dur):""):"")):(meta?meta.size:"");
-    var tag=meta?'<span class="tag ok">'+esc(t("tag.kaggle"))+'</span>':(d?'<span class="tag warn">'+esc(t("tag.nokaggle"))+'</span>':'');
+    var up=d&&d.up,tag=up?(up.state==="up"?'<span class="tag warn">'+esc(t("tag.up",{p:Math.min(99,Math.floor(up.sent*100/Math.max(1,up.total)))}))+'</span>':up.state==="ok"?'<span class="tag ok">'+esc(t("tag.upok"))+'</span>':'<span class="tag warn">'+esc(t("tag.uperr"))+'</span>')
+      :meta?'<span class="tag ok">'+esc(t("tag.kaggle"))+'</span>':(d?'<span class="tag warn">'+esc(t("tag.nokaggle"))+'</span>':'');
     return '<label class="vcard"><input type="checkbox" data-v="'+esc(n)+'"'+(S.videos[n]?" checked":"")+' aria-label="'+esc(title)+'">'
       +'<span class="th">'+(d&&d.thumb?'<img alt="" src="'+esc(d.thumb)+'">':'🎞')+'</span><span class="ck">✓</span>'
       +'<span class="mt"><span class="nm" title="'+esc(title)+'">'+esc(title)+'</span><span class="sub">'+esc(sub)+'</span>'+tag+'</span></label>';
   }).join("");
   $("videoList").innerHTML=html+'<button class="vadd" id="btnPick"><b>＋</b><span>'+esc(names.length?t("video.add"):t("video.choose"))+'</span></button>';
-  var up=Object.keys(S.drops).filter(function(k){return S.videos[k]&&!inDataset(k);}),box=$("upNote");
+  var up=canUpload()?[]:Object.keys(S.drops).filter(function(k){return S.videos[k]&&!inDataset(k);}),box=$("upNote");
   if(!up.length){box.hidden=true;box.innerHTML="";return;}
   box.hidden=false;
   box.innerHTML='<b>'+esc(t("up.title"))+'</b> '+esc(t("up.run"))
@@ -613,8 +682,9 @@ function renderLcd(){
   else if(st==="loaded"){main=S.sizes.length?t("lcd.press"):t("lcd.pickLed");sub=t("lcd.loaded.sub",{n:vids,size:sz?" · "+sz.w+"×"+sz.h:"",est:est});}
   else if(st==="washing"){
     var start=wj&&wj.submitted_at?Date.parse(wj.submitted_at):S.watchTs;
-    if(S.sending||!wj){main=t("lcd.send");ph=0;}else if(wj.status==="running"){main=t("lcd.wash");ph=2;}else{main=t("lcd.queue");ph=1;}
-    sub=t("lcd.wash.sub",{t:hms(Date.now()-(start||Date.now())),est:est});
+    var upl=S.sending?uploadPct():null;
+    if(upl!==null){main=t("lcd.upload");ph=0;}else if(S.sending||!wj){main=t("lcd.send");ph=0;}else if(wj.status==="running"){main=t("lcd.wash");ph=2;}else{main=t("lcd.queue");ph=1;}
+    sub=upl!==null?t("lcd.upload.sub",{p:upl}):t("lcd.wash.sub",{t:hms(Date.now()-(start||Date.now())),est:est});
   }
   else if(st==="done"){main=t("lcd.done");sub=t("lcd.done.sub");ph=3;}
   else{main=t("lcd.err");sub=wj&&wj.status==="cancelled"?t("lcd.err.cancel"):t("lcd.err.sub");err=true;}
@@ -700,14 +770,20 @@ function run(){
   var job=buildJob(),err=validate(job);
   if(err){if(!S.panelOpen)openPanel();panelMsg(err);sayHold(err);sfx("error");if(!job.videos.length)flagNeed(1);else if(!job.sizes.length)flagNeed(2);$("pMascot").innerHTML=mascotSVG("error");panelMsg._face="";return;}
   if(!S.power){closePanel();plugNudge();return;}
-  var txt=JSON.stringify(job);if(txt.length>60000){toast(t("err.tooLong"),"bad");return;}
   S.sending=true;S.watchId=job.id;S.watchTs=Date.now();S.hold=0;
   closePanel();update();
-  dispatch("submit.yml",{job:txt}).then(function(r){
+  ensureUploads(job.videos).then(function(map){
+    if(Object.keys(map).length)job.uploads=map;
+    var txt=JSON.stringify(job);if(txt.length>60000){var e=new Error("tooLong");e.tooLong=true;throw e;}
+    S.watchTs=Date.now();
+    return dispatch("submit.yml",{job:txt});
+  }).then(function(r){
     S.sending=false;
     if(r.status===204||r.status===200){toast(t("toast.sent"),"good");sfx("start");pollSoon();}
     else{S.watchId="";r.text().then(function(b){toast(explain(r.status)+" "+(b||"").slice(0,120),"bad");});sfx("error");}
-  }).catch(function(e){S.sending=false;S.watchId="";toast(t("err.net",{m:e.message}),"bad");sfx("error");})
+  }).catch(function(e){S.sending=false;S.watchId="";
+    if(e.tooLong)toast(t("err.tooLong"),"bad");else if(!/^cancel$/.test(e.message)&&!/upload|network|timeout|rate|large|HTTP|configured/i.test(e.message))toast(t("err.net",{m:e.message}),"bad");
+    sfx("error");})
     .then(function(){update();});
 }
 $("btnRun").onclick=run;$("btnRun2").onclick=run;
