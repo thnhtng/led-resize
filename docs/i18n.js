@@ -60,6 +60,7 @@ vi: {
 
   "lcd.ready": "SẴN SÀNG", "lcd.ready.sub": "thả video vào máy", "lcd.hungry": "HÁ MIỆNG...", "lcd.hungry.sub": "thả video đi!",
   "lcd.press": "BẤM GIẶT!", "lcd.pickLed": "CHỌN MÀN LED", "lcd.loaded.sub": "{n} video{size}{est}",
+  "lcd.upload": "NẠP VẢI", "lcd.upload.sub": "Đang tải video lên máy… {p}%", "tag.up": "Đang tải lên {p}%", "tag.upok": "✓ đã nạp vào máy", "tag.uperr": "⚠ tải lên lỗi — bấm GIẶT để thử lại", "err.upload": "Chưa tải được video lên máy giặt ({m}). Bấm GIẶT để thử lại.",
   "lcd.send": "GỬI PHIẾU", "lcd.queue": "XẾP HÀNG", "lcd.wash": "ĐANG GIẶT", "lcd.wash.sub": "⏱ {t}{est}",
   "lcd.done": "XONG RỒI!", "lcd.done.sub": "xem vải phơi",
   "lcd.err": "MÁY KẸT", "lcd.err.sub": "xem lỗi bên dưới", "lcd.err.cancel": "mẻ giặt bị huỷ",
@@ -158,6 +159,7 @@ en: {
 
   "lcd.ready": "READY", "lcd.ready.sub": "drop a video in", "lcd.hungry": "OPEN WIDE...", "lcd.hungry.sub": "drop it!",
   "lcd.press": "PRESS WASH!", "lcd.pickLed": "PICK LED SIZE", "lcd.loaded.sub": "{n} video{size}{est}",
+  "lcd.upload": "LOADING", "lcd.upload.sub": "Uploading your video… {p}%", "tag.up": "Uploading {p}%", "tag.upok": "✓ loaded into the machine", "tag.uperr": "⚠ upload failed — press WASH to retry", "err.upload": "Couldn't upload the video ({m}). Press WASH to retry.",
   "lcd.send": "SENDING", "lcd.queue": "IN QUEUE", "lcd.wash": "WASHING", "lcd.wash.sub": "⏱ {t}{est}",
   "lcd.done": "ALL DONE!", "lcd.done.sub": "see the clothesline",
   "lcd.err": "JAMMED", "lcd.err.sub": "see the error below", "lcd.err.cancel": "the load was cancelled",
@@ -256,6 +258,7 @@ ko: {
 
   "lcd.ready": "준비 완료", "lcd.ready.sub": "영상을 넣어주세요", "lcd.hungry": "아~ 벌려요...", "lcd.hungry.sub": "놓아주세요!",
   "lcd.press": "세탁을 누르세요!", "lcd.pickLed": "LED 크기 선택", "lcd.loaded.sub": "영상 {n}개{size}{est}",
+  "lcd.upload": "넣는 중", "lcd.upload.sub": "영상을 올리는 중… {p}%", "tag.up": "업로드 {p}%", "tag.upok": "✓ 세탁기에 넣었어요", "tag.uperr": "⚠ 업로드 실패 — 세탁을 눌러 다시 시도", "err.upload": "영상을 올리지 못했어요 ({m}). 세탁을 눌러 다시 시도하세요.",
   "lcd.send": "전송 중", "lcd.queue": "대기 중", "lcd.wash": "세탁 중", "lcd.wash.sub": "⏱ {t}{est}",
   "lcd.done": "완료!", "lcd.done.sub": "빨랫줄을 확인하세요",
   "lcd.err": "고장", "lcd.err.sub": "아래 오류를 확인하세요", "lcd.err.cancel": "세탁이 취소되었어요",

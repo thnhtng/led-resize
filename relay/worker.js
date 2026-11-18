@@ -3,6 +3,8 @@
      GET  /health          → {ok:true}
      GET  /data/jobs|videos → đọc docs/data/*.json (dữ liệu mới nhất, không qua cache của Pages)
      POST /dispatch        → chạy workflow submit.yml / poll.yml với dữ liệu đã kiểm tra chặt
+     POST /upload/start · PUT /upload/part · POST /upload/complete → trình duyệt tải video lên R2 (từng phần)
+     GET  /files/u/<id>/<tên> → kernel Kaggle tải video về (cần khoá bí mật FILES_SECRET)
    Cấu hình (wrangler.toml / dashboard):  GH_REPO="owner/repo"  ALLOWED_ORIGINS="https://owner.github.io"
    Bí mật:  wrangler secret put GH_TOKEN   (fine-grained, repo này, Actions: read/write + Contents: read) */
 
@@ -26,8 +28,16 @@ const num = (v, a, b) => typeof v === "number" && Number.isFinite(v) && v >= a &
 const str = (v, re, max) => typeof v === "string" && v.length <= max && re.test(v);
 const SAFE_TEXT = /^[^\u0000-\u0008\u000b\u000c\u000e-\u001f]*$/; /* không ký tự điều khiển */
 
+const VIDEO_NAME = /^[A-Za-z0-9._-]{1,100}\.(mp4|mov|mkv|webm|avi|m4v)$/i;
+const FILE_KEY = /^u\/[0-9a-f]{32}\/[A-Za-z0-9._-]{1,100}$/;
+const PART_BYTES = 32 * 1024 * 1024; /* Worker gói miễn phí nhận tối đa 100 MB mỗi request */
+const MIME = { mp4: "video/mp4", m4v: "video/mp4", mov: "video/quicktime", mkv: "video/x-matroska", webm: "video/webm", avi: "video/x-msvideo" };
+const hex32 = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, "0")).join("");
+const safeEq = (a, b) => { if (a.length !== b.length) return false; let r = 0; for (let i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i); return r === 0; };
+const maxUploadBytes = env => Math.max(1, Number(env.MAX_UPLOAD_MB) || 1024) * 1024 * 1024;
+
 /* Kiểm tra + dựng lại job từ danh sách trắng (khoá lạ bị bỏ). Trả về {job} hoặc {error}. */
-export function sanitizeJob(j) {
+export function sanitizeJob(j, base = "") {
   if (!j || typeof j !== "object" || Array.isArray(j)) return { error: "job must be an object" };
   const o = {};
   if (!str(j.id, /^[a-z0-9-]{3,60}$/, 60)) return { error: "bad id" }; o.id = j.id;
@@ -35,6 +45,16 @@ export function sanitizeJob(j) {
   if (!Array.isArray(j.videos) || j.videos.length < 1 || j.videos.length > 8) return { error: "videos: 1-8 items" };
   for (const v of j.videos) if (!str(v, /^[A-Za-z0-9._-]{1,100}\.(mp4|mov|mkv|webm|avi|m4v)$/i, 110)) return { error: "bad video name" };
   o.videos = j.videos.slice();
+  if (j.uploads !== undefined) {
+    /* video đã tải lên R2: chỉ nhận đúng địa chỉ do trạm này cấp, và phải ứng với một video trong job */
+    if (!base || !j.uploads || typeof j.uploads !== "object" || Array.isArray(j.uploads)) return { error: "bad uploads" };
+    o.uploads = {};
+    for (const [name, url] of Object.entries(j.uploads)) {
+      if (!o.videos.includes(name)) return { error: "uploads: unknown video" };
+      if (typeof url !== "string" || !url.startsWith(base + "/files/") || !FILE_KEY.test(url.slice(base.length + "/files/".length))) return { error: "bad upload url" };
+      o.uploads[name] = url;
+    }
+  }
   if (!Array.isArray(j.sizes) || j.sizes.length < 1 || j.sizes.length > 6) return { error: "sizes: 1-6 items" };
   const seen = new Set(); o.sizes = [];
   for (const s of j.sizes) {
@@ -67,7 +87,7 @@ function cors(req, env, extra = {}) {
   const h = { "Content-Type": "application/json", "Cache-Control": "no-store", ...extra };
   if (origin && allowed.includes(origin)) {
     h["Access-Control-Allow-Origin"] = origin; h["Vary"] = "Origin";
-    h["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS"; h["Access-Control-Allow-Headers"] = "Content-Type"; h["Access-Control-Max-Age"] = "600";
+    h["Access-Control-Allow-Methods"] = "GET,POST,PUT,OPTIONS"; h["Access-Control-Allow-Headers"] = "Content-Type"; h["Access-Control-Max-Age"] = "600";
   }
   return { h, ok: !origin || allowed.includes(origin) };
 }
@@ -104,13 +124,69 @@ export default {
       if (body.workflow === "submit.yml") {
         if (!rateOK("d:" + ip, Number(env.MAX_JOBS_PER_HOUR) || 6, 3600000)) return json({ error: "rate limited" }, 429, h);
         let job; try { job = JSON.parse(String(body.inputs && body.inputs.job)); } catch (e) { return json({ error: "invalid job" }, 400, h); }
-        const v = sanitizeJob(job); if (v.error) return json({ error: v.error }, 400, h);
+        const v = sanitizeJob(job, url.origin); if (v.error) return json({ error: v.error }, 400, h);
         inputs = { job: JSON.stringify(v.job) };
       } else if (!rateOK("p:" + ip, 6, 3600000)) return json({ error: "rate limited" }, 429, h);
       const r = await gh("/actions/workflows/" + body.workflow + "/dispatches", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ref: branch, inputs }) });
       if (r.status === 204) return json(null, 204, h);
       return json({ error: "upstream " + r.status }, r.status === 404 || r.status === 422 ? r.status : 502, h);
     }
+
+    /* ---- tải video lên R2 (từng phần) ---- */
+    if (url.pathname.startsWith("/upload/")) {
+      if (!env.VIDEOS) return json({ error: "uploads are not configured" }, 503, h);
+      const maxB = maxUploadBytes(env);
+      if (url.pathname === "/upload/start" && req.method === "POST") {
+        if (!rateOK("u:" + ip, Number(env.MAX_UPLOADS_PER_HOUR) || 10, 3600000)) return json({ error: "rate limited" }, 429, h);
+        let b; try { b = JSON.parse(await req.text()); } catch (e) { return json({ error: "invalid JSON" }, 400, h); }
+        if (!b || !str(b.name, VIDEO_NAME, 110)) return json({ error: "bad name" }, 400, h);
+        if (!int(b.size, 1, maxB)) return json({ error: "file too large" }, 413, h);
+        const key = "u/" + hex32() + "/" + b.name;
+        const mp = await env.VIDEOS.createMultipartUpload(key, { httpMetadata: { contentType: MIME[b.name.split(".").pop().toLowerCase()] || "application/octet-stream" } });
+        return json({ key, uploadId: mp.uploadId, partSize: PART_BYTES, parts: Math.ceil(b.size / PART_BYTES) }, 200, h);
+      }
+      if (url.pathname === "/upload/part" && req.method === "PUT") {
+        const key = url.searchParams.get("key") || "", uploadId = url.searchParams.get("uploadId") || "", n = Number(url.searchParams.get("n"));
+        if (!FILE_KEY.test(key) || !/^[\w.~-]{10,400}$/.test(uploadId) || !int(n, 1, Math.ceil(maxB / PART_BYTES))) return json({ error: "bad part" }, 400, h);
+        const len = Number(req.headers.get("Content-Length"));
+        if (!Number.isFinite(len) || len < 1 || len > PART_BYTES) return json({ error: "bad part size" }, 413, h);
+        try {
+          const part = await env.VIDEOS.resumeMultipartUpload(key, uploadId).uploadPart(n, await req.arrayBuffer());
+          return json({ partNumber: part.partNumber, etag: part.etag }, 200, h);
+        } catch (e) { return json({ error: "part failed" }, 502, h); }
+      }
+      if (url.pathname === "/upload/complete" && req.method === "POST") {
+        let b; try { b = JSON.parse(await req.text()); } catch (e) { return json({ error: "invalid JSON" }, 400, h); }
+        if (!b || !FILE_KEY.test(b.key || "") || !/^[\w.~-]{10,400}$/.test(b.uploadId || "") || !Array.isArray(b.parts) || b.parts.length < 1 || b.parts.length > Math.ceil(maxB / PART_BYTES)) return json({ error: "bad request" }, 400, h);
+        const parts = b.parts.map(p => ({ partNumber: p && p.partNumber, etag: p && p.etag }));
+        if (parts.some(p => !int(p.partNumber, 1, 10000) || typeof p.etag !== "string" || p.etag.length > 200)) return json({ error: "bad parts" }, 400, h);
+        try {
+          const obj = await env.VIDEOS.resumeMultipartUpload(b.key, b.uploadId).complete(parts);
+          if (obj.size > maxB) { await env.VIDEOS.delete(b.key); return json({ error: "file too large" }, 413, h); }
+          return json({ url: url.origin + "/files/" + b.key, size: obj.size }, 200, h);
+        } catch (e) { return json({ error: "complete failed" }, 502, h); }
+      }
+      return json({ error: "not found" }, 404, h);
+    }
+
+    /* ---- kernel Kaggle tải video về (không có Origin; cần Authorization: Bearer FILES_SECRET) ---- */
+    if (url.pathname.startsWith("/files/") && (req.method === "GET" || req.method === "HEAD")) {
+      if (!env.VIDEOS || !env.FILES_SECRET) return json({ error: "uploads are not configured" }, 503, h);
+      /* repo công khai ⇒ địa chỉ file nằm trong input công khai của workflow; chỉ kernel (có khoá bí mật) mới tải được */
+      if (!safeEq(req.headers.get("Authorization") || "", "Bearer " + env.FILES_SECRET)) return json({ error: "unauthorized" }, 401, h);
+      const key = url.pathname.slice("/files/".length);
+      if (!FILE_KEY.test(key)) return json({ error: "not found" }, 404, h);
+      const obj = req.method === "HEAD" ? await env.VIDEOS.head(key) : await env.VIDEOS.get(key, { range: req.headers });
+      if (!obj) return json({ error: "not found" }, 404, h);
+      const fh = new Headers({ "Content-Type": (obj.httpMetadata && obj.httpMetadata.contentType) || "application/octet-stream", "Accept-Ranges": "bytes", "Cache-Control": "private, no-store", ETag: obj.httpEtag });
+      let status = 200;
+      if (obj.range && req.method === "GET") {
+        const r = obj.range, off = r.offset ?? 0, len = r.length ?? (obj.size - off);
+        fh.set("Content-Range", "bytes " + off + "-" + (off + len - 1) + "/" + obj.size); fh.set("Content-Length", String(len)); status = 206;
+      } else fh.set("Content-Length", String(obj.size));
+      return new Response(req.method === "HEAD" ? null : obj.body, { status, headers: fh });
+    }
+
     return json({ error: "not found" }, 404, h);
   }
 };

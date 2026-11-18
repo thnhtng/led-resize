@@ -7,4 +7,11 @@ GH_REPO = "thnhtng/led-resize"                    # repo chứa workflow submit.
 ALLOWED_ORIGINS = "https://thnhtng.github.io" # trang web được phép gọi trạm (nhiều giá trị: ngăn cách bằng dấu phẩy)
 DEFAULT_BRANCH = "main"
 MAX_JOBS_PER_HOUR = "6"                     # mỗi địa chỉ IP
+MAX_UPLOADS_PER_HOUR = "10"                 # số video tải lên mỗi giờ, mỗi IP
+MAX_UPLOAD_MB = "1024"                      # dung lượng tối đa mỗi video
 # Bí mật (KHÔNG ghi ở đây):  npx wrangler secret put GH_TOKEN
+
+# Kho chứa video người dùng tải lên (tự xoá sau 3 ngày bằng lifecycle rule). Tạo bucket: npx wrangler r2 bucket create size-washer-videos
+[[r2_buckets]]
+binding = "VIDEOS"
+bucket_name = "size-washer-videos"
