@@ -45,7 +45,7 @@ def make_previews(job):
     with tempfile.TemporaryDirectory() as d:
         rc, out = kaggle("kernels", "output", job["kernel"], "-p", d)
         if rc != 0:
-            print("không tải được output để dựng preview:", out.strip()[:200])
+            print("không tải được output để dựng preview:", out.strip()[-600:])
             return []
         return PV.build_previews(job["id"], d, os.path.join("docs", "data", "previews"))
 
@@ -86,7 +86,7 @@ def sync_videos():
         return
     rc, out = kaggle("datasets", "files", f"{user}/{ds}")
     if rc != 0:
-        print("không liệt kê được dataset:", out.strip()[:200])
+        print("không liệt kê được dataset:", out.strip()[-600:])
         return
     vids = []
     for line in out.splitlines():
