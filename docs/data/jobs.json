@@ -1,5 +1,38 @@
 [
  {
+  "id": "j20261118-200321j9",
+  "label": "TV.mp4 → 3784x774, 4128x1290",
+  "submitted_at": "2026-11-18T13:03:33Z",
+  "run_url": "https://github.com/thnhtng/led-resize/actions/runs/44309842192",
+  "status": "submitted",
+  "kernel": "phcthnhtng/led-resize-j20261118-200321j9",
+  "kernel_url": "https://www.kaggle.com/code/phcthnhtng/led-resize-j20261118-200321j9",
+  "engine": "wan",
+  "model": "1.3b",
+  "accelerator": "NvidiaTeslaT4",
+  "sizes": [
+   {
+    "name": "cafeteria",
+    "w": 3784,
+    "h": 774
+   },
+   {
+    "name": "townhall",
+    "w": 4128,
+    "h": 1290
+   }
+  ],
+  "videos": [
+   "TV.mp4"
+  ],
+  "steps": 25,
+  "stride": 1,
+  "gen_mpx": 0.5,
+  "scale": 1,
+  "test_seconds": 0,
+  "resume_from": ""
+ },
+ {
   "id": "j20261118-1415429p",
   "label": "TV.mp4 → 4128x1290",
   "submitted_at": "2026-11-18T07:15:54Z",
