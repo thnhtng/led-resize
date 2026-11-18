@@ -4,7 +4,7 @@
   "label": "TV.mp4 → 4128x1290",
   "submitted_at": "2026-11-18T07:15:54Z",
   "run_url": "https://github.com/thnhtng/led-resize/actions/runs/44257492299",
-  "status": "submitted",
+  "status": "running",
   "kernel": "phcthnhtng/led-resize-j20261118-1415429p",
   "kernel_url": "https://www.kaggle.com/code/phcthnhtng/led-resize-j20261118-1415429p",
   "engine": "wan",
