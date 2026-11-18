@@ -1,5 +1,33 @@
 [
  {
+  "id": "j20261118123920t1",
+  "label": "sample-video.mp4 → test 1280x392 (blur)",
+  "submitted_at": "2026-11-18T05:39:31Z",
+  "run_url": "https://github.com/thnhtng/led-resize/actions/runs/44245748644",
+  "status": "submitted",
+  "kernel": "phcthnhtng/led-resize-j20261118123920t1",
+  "kernel_url": "https://www.kaggle.com/code/phcthnhtng/led-resize-j20261118123920t1",
+  "engine": "blur",
+  "model": "1.3b",
+  "accelerator": "CPU",
+  "sizes": [
+   {
+    "name": "test",
+    "w": 1280,
+    "h": 392
+   }
+  ],
+  "videos": [
+   "sample-video.mp4"
+  ],
+  "steps": 25,
+  "stride": 1,
+  "gen_mpx": 0.5,
+  "scale": 1,
+  "test_seconds": 2,
+  "resume_from": ""
+ },
+ {
   "id": "j20261118-122503n4",
   "label": "TV.mp4 → 4128x1290",
   "submitted_at": "2026-11-18T05:25:17Z",
