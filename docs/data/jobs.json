@@ -4,7 +4,7 @@
   "label": "sample-video.mp4 → test 1280x392 (blur)",
   "submitted_at": "2026-11-18T05:39:31Z",
   "run_url": "https://github.com/thnhtng/led-resize/actions/runs/44245748644",
-  "status": "submitted",
+  "status": "done",
   "kernel": "phcthnhtng/led-resize-j20261118123920t1",
   "kernel_url": "https://www.kaggle.com/code/phcthnhtng/led-resize-j20261118123920t1",
   "engine": "blur",
@@ -25,7 +25,9 @@
   "gen_mpx": 0.5,
   "scale": 1,
   "test_seconds": 2,
-  "resume_from": ""
+  "resume_from": "",
+  "finished_at": "2026-11-18T05:41:15Z",
+  "output_cmd": "kaggle kernels output phcthnhtng/led-resize-j20261118123920t1 -p ~/Downloads/led_out"
  },
  {
   "id": "j20261118-122503n4",
