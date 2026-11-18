@@ -54,6 +54,15 @@ def sync_jobs():
     jobs = JL.load(JL.JOBS, [])
     changed = False
     for j in jobs:
+        if j.get("status") == "done" and j.get("kernel") and not j.get("previews") and j.get("preview_tries", 0) < 3:
+            j["preview_tries"] = j.get("preview_tries", 0) + 1  # dựng lại bản xem thử nếu lần trước lỗi (ffmpeg, mạng...)
+            changed = True
+            try:
+                pv = make_previews(j)
+                if pv:
+                    j["previews"] = pv
+            except Exception as e:  # noqa
+                print("preview thất bại:", e)
         if j.get("status") not in ACTIVE or not j.get("kernel"):
             continue
         rc, out = kaggle("kernels", "status", j["kernel"])
