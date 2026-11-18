@@ -27,7 +27,17 @@
   "test_seconds": 2,
   "resume_from": "",
   "finished_at": "2026-11-18T05:41:15Z",
-  "output_cmd": "kaggle kernels output phcthnhtng/led-resize-j20261118123920t1 -p ~/Downloads/led_out"
+  "output_cmd": "kaggle kernels output phcthnhtng/led-resize-j20261118123920t1 -p ~/Downloads/led_out",
+  "preview_tries": 1,
+  "previews": [
+   {
+    "label": "sample-video_test",
+    "mp4": "data/previews/j20261118123920t1_1.mp4",
+    "jpg": "data/previews/j20261118123920t1_1.jpg",
+    "w": 960,
+    "h": 294
+   }
+  ]
  },
  {
   "id": "j20261118-122503n4",
