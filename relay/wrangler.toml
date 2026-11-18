@@ -9,6 +9,10 @@ DEFAULT_BRANCH = "main"
 MAX_JOBS_PER_HOUR = "6"                     # mỗi địa chỉ IP
 MAX_UPLOADS_PER_HOUR = "10"                 # số video tải lên mỗi giờ, mỗi IP
 MAX_UPLOAD_MB = "1024"                      # dung lượng tối đa mỗi video
+# Hạn mức TOÀN CỤC — chạm một mức là cả công cụ tạm khoá (trang hiển thị phần còn lại, giờ mở lại)
+QUOTA_STORAGE_GB = "8"                      # kho video R2 (gói miễn phí 10 GB)
+QUOTA_GPU_HOURS_WEEK = "30"                 # giờ GPU Kaggle mỗi tuần (hạn mức miễn phí của Kaggle)
+QUOTA_JOBS_PER_DAY = "20"                   # số mẻ giặt mỗi 24 giờ
 # Bí mật (KHÔNG ghi ở đây):  npx wrangler secret put GH_TOKEN
 
 # Kho chứa video người dùng tải lên (tự xoá sau 3 ngày bằng lifecycle rule). Tạo bucket: npx wrangler r2 bucket create size-washer-videos

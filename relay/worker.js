@@ -4,6 +4,7 @@
      GET  /data/jobs|videos → đọc docs/data/*.json (dữ liệu mới nhất, không qua cache của Pages)
      POST /dispatch        → chạy workflow submit.yml / poll.yml với dữ liệu đã kiểm tra chặt
      POST /upload/start · PUT /upload/part · POST /upload/complete → trình duyệt tải video lên R2 (từng phần)
+     GET  /quota           → hạn mức còn lại (kho video, giờ GPU Kaggle, số mẻ, số lần tải lên); hết hạn mức ⇒ khoá mọi thao tác
      GET  /files/u/<id>/<tên> → kernel Kaggle tải video về (cần khoá bí mật FILES_SECRET)
    Cấu hình (wrangler.toml / dashboard):  GH_REPO="owner/repo"  ALLOWED_ORIGINS="https://owner.github.io"
    Bí mật:  wrangler secret put GH_TOKEN   (fine-grained, repo này, Actions: read/write + Contents: read) */
@@ -14,12 +15,18 @@ const MAX_BODY = 70000;
 
 /* giới hạn tần suất (trong bộ nhớ của isolate — đủ để chặn lạm dụng thông thường; dùng KV nếu cần chặt hơn) */
 const buckets = new Map();
+let quotaCache = { at: 0, data: null };
+export function _resetQuotaCache() { quotaCache = { at: 0, data: null }; }
 export function rateOK(key, limit, windowMs, now = Date.now()) {
   const b = (buckets.get(key) || []).filter(t => now - t < windowMs);
   if (b.length >= limit) { buckets.set(key, b); return false; }
   b.push(now); buckets.set(key, b);
   if (buckets.size > 5000) for (const [k, v] of buckets) if (!v.length || now - v[v.length - 1] > windowMs) buckets.delete(k);
   return true;
+}
+export function rateInfo(key, limit, windowMs, now = Date.now()) {
+  const b = (buckets.get(key) || []).filter(t => now - t < windowMs);
+  return { used: b.length, limit, resetMs: b.length ? b[0] + windowMs - now : 0 };
 }
 export function _resetRate() { buckets.clear(); }
 
@@ -35,6 +42,38 @@ const MIME = { mp4: "video/mp4", m4v: "video/mp4", mov: "video/quicktime", mkv: 
 const hex32 = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, "0")).join("");
 const safeEq = (a, b) => { if (a.length !== b.length) return false; let r = 0; for (let i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i); return r === 0; };
 const maxUploadBytes = env => Math.max(1, Number(env.MAX_UPLOAD_MB) || 1024) * 1024 * 1024;
+
+/* ---- hạn mức: tính từ dữ liệu thật (R2, jobs.json) chứ không phải bộ đếm trong bộ nhớ ---- */
+const GB = 1024 ** 3, DAY_MS = 864e5, WEEK_MS = 7 * DAY_MS;
+const posNum = (v, d) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : d; };
+export function quotaLimits(env) {
+  return { storage: posNum(env.QUOTA_STORAGE_GB, 8) * GB, gpu: posNum(env.QUOTA_GPU_HOURS_WEEK, 30), jobsDay: posNum(env.QUOTA_JOBS_PER_DAY, 20),
+    jobsHour: posNum(env.MAX_JOBS_PER_HOUR, 6), uploadsHour: posNum(env.MAX_UPLOADS_PER_HOUR, 10) };
+}
+/* storage: {used, oldest(ms)}; ipJobs/ipUploads: kết quả rateInfo; pending: số mẻ vừa gửi, chưa kịp vào jobs.json */
+export function computeQuota({ jobs = [], storage = { used: 0, oldest: Infinity }, ipJobs, ipUploads, pending = 0, env, now = Date.now() }) {
+  const L = quotaLimits(env);
+  let gpu = 0, gpuOld = Infinity, day = pending, dayOld = Infinity;
+  for (const j of Array.isArray(jobs) ? jobs : []) {
+    const st = Date.parse(j && j.submitted_at); if (!Number.isFinite(st)) continue;
+    if (now - st < DAY_MS) { day++; dayOld = Math.min(dayOld, st); }
+    if (j.engine === "wan" && j.kernel && now - st < WEEK_MS) {          /* chỉ mẻ AI (GPU); tính từ lúc gửi nên là ước tính thận trọng */
+      const active = j.status === "submitted" || j.status === "queued" || j.status === "running";   /* mẻ lỗi/huỷ không có giờ kết thúc ⇒ không tính */
+      const en = j.finished_at ? Date.parse(j.finished_at) : active ? now : st, h = Math.min(12, Math.max(0, ((Number.isFinite(en) ? en : st) - st) / 36e5));
+      if (h > 0) { gpu += h; gpuOld = Math.min(gpuOld, st); }
+    }
+  }
+  const sec = ms => Math.max(0, Math.ceil(ms / 1000));
+  const meters = [
+    { id: "storage", used: storage.used, limit: L.storage, unit: "bytes", resetSec: Number.isFinite(storage.oldest) ? sec(storage.oldest + 3 * DAY_MS - now) : 0 },
+    { id: "gpu", used: Math.round(gpu * 100) / 100, limit: L.gpu, unit: "hours", approx: true, resetSec: Number.isFinite(gpuOld) ? sec(gpuOld + WEEK_MS - now) : 0 },
+    { id: "jobsDay", used: day, limit: L.jobsDay, unit: "count", resetSec: Number.isFinite(dayOld) ? sec(dayOld + DAY_MS - now) : 0 },
+    { id: "jobsHour", used: ipJobs ? ipJobs.used : 0, limit: L.jobsHour, unit: "count", resetSec: ipJobs ? sec(ipJobs.resetMs) : 0 },
+    { id: "uploadsHour", used: ipUploads ? ipUploads.used : 0, limit: L.uploadsHour, unit: "count", resetSec: ipUploads ? sec(ipUploads.resetMs) : 0 },
+  ];
+  const out = meters.filter(m => m.used >= m.limit);
+  return { meters, locked: out.length > 0, reason: out.length ? out[0].id : "", resetSec: out.length ? Math.max(...out.map(m => m.resetSec)) : 0 };
+}
 
 /* Kiểm tra + dựng lại job từ danh sách trắng (khoá lạ bị bỏ). Trả về {job} hoặc {error}. */
 export function sanitizeJob(j, base = "") {
@@ -106,6 +145,35 @@ export default {
 
     if (url.pathname === "/health" && req.method === "GET") return json({ ok: true }, 200, h);
 
+    /* lấy dữ liệu hạn mức (cache 20 giây trong isolate) rồi tính */
+    const gatherQuota = async () => {
+      const now = Date.now();
+      if (!quotaCache.data || now - quotaCache.at > 20000) {
+        let jobs = null, storage = null;
+        try { const r = await gh("/contents/docs/data/jobs.json?ref=" + encodeURIComponent(branch), { headers: { Accept: "application/vnd.github.raw+json" } }); if (r.ok) jobs = await r.json(); } catch (e) { /* bỏ qua */ }
+        try {
+          if (env.VIDEOS) { let used = 0, oldest = Infinity, cursor; for (let i = 0; i < 10; i++) { const r = await env.VIDEOS.list({ prefix: "u/", limit: 1000, cursor }); for (const o of r.objects) { used += o.size; const t = +new Date(o.uploaded); if (t < oldest) oldest = t; } if (!r.truncated) break; cursor = r.cursor; } storage = { used, oldest }; }
+        } catch (e) { /* bỏ qua */ }
+        quotaCache = { at: now, data: { jobs, storage } };
+      }
+      const { jobs, storage } = quotaCache.data;
+      const q = computeQuota({ jobs: jobs || [], storage: storage || undefined, ipJobs: rateInfo("d:" + ip, Number(env.MAX_JOBS_PER_HOUR) || 6, 3600000, now),
+        ipUploads: rateInfo("u:" + ip, Number(env.MAX_UPLOADS_PER_HOUR) || 10, 3600000, now), pending: rateInfo("g:disp", Infinity, 120000, now).used, env, now });
+      q.partial = !jobs || (!!env.VIDEOS && !storage);
+      return q;
+    };
+    const quotaBlock = async (extraBytes = 0) => {
+      const q = await gatherQuota(); const L = quotaLimits(env);
+      if (q.locked) return json({ error: "quota", reason: q.reason, resetSec: q.resetSec }, 429, h);
+      const st = q.meters.find(m => m.id === "storage");
+      if (extraBytes && st && st.used + extraBytes > L.storage) return json({ error: "quota", reason: "storage", resetSec: st.resetSec }, 429, h);
+      return null;
+    };
+    if (url.pathname === "/quota" && req.method === "GET") {
+      if (!rateOK("r:" + ip, 120, 60000)) return json({ error: "rate limited" }, 429, h);
+      const q = await gatherQuota(); return json({ ...q, at: Date.now() }, 200, h);
+    }
+
     const m = url.pathname.match(/^\/data\/(\w+)$/);
     if (m && req.method === "GET") {
       if (!DATA.has(m[1])) return json({ error: "not found" }, 404, h);
@@ -122,10 +190,12 @@ export default {
       if (!body || !WORKFLOWS.has(body.workflow)) return json({ error: "workflow not allowed" }, 400, h);
       let inputs = {};
       if (body.workflow === "submit.yml") {
+        const blocked = await quotaBlock(); if (blocked) return blocked;
         if (!rateOK("d:" + ip, Number(env.MAX_JOBS_PER_HOUR) || 6, 3600000)) return json({ error: "rate limited" }, 429, h);
         let job; try { job = JSON.parse(String(body.inputs && body.inputs.job)); } catch (e) { return json({ error: "invalid job" }, 400, h); }
         const v = sanitizeJob(job, url.origin); if (v.error) return json({ error: v.error }, 400, h);
         inputs = { job: JSON.stringify(v.job) };
+        rateOK("g:disp", Infinity, 120000);
       } else if (!rateOK("p:" + ip, 6, 3600000)) return json({ error: "rate limited" }, 429, h);
       const r = await gh("/actions/workflows/" + body.workflow + "/dispatches", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ref: branch, inputs }) });
       if (r.status === 204) return json(null, 204, h);
@@ -137,10 +207,11 @@ export default {
       if (!env.VIDEOS) return json({ error: "uploads are not configured" }, 503, h);
       const maxB = maxUploadBytes(env);
       if (url.pathname === "/upload/start" && req.method === "POST") {
-        if (!rateOK("u:" + ip, Number(env.MAX_UPLOADS_PER_HOUR) || 10, 3600000)) return json({ error: "rate limited" }, 429, h);
         let b; try { b = JSON.parse(await req.text()); } catch (e) { return json({ error: "invalid JSON" }, 400, h); }
         if (!b || !str(b.name, VIDEO_NAME, 110)) return json({ error: "bad name" }, 400, h);
         if (!int(b.size, 1, maxB)) return json({ error: "file too large" }, 413, h);
+        const blocked = await quotaBlock(b.size); if (blocked) return blocked;
+        if (!rateOK("u:" + ip, Number(env.MAX_UPLOADS_PER_HOUR) || 10, 3600000)) return json({ error: "rate limited" }, 429, h);
         const key = "u/" + hex32() + "/" + b.name;
         const mp = await env.VIDEOS.createMultipartUpload(key, { httpMetadata: { contentType: MIME[b.name.split(".").pop().toLowerCase()] || "application/octet-stream" } });
         return json({ key, uploadId: mp.uploadId, partSize: PART_BYTES, parts: Math.ceil(b.size / PART_BYTES) }, 200, h);
@@ -163,6 +234,7 @@ export default {
         try {
           const obj = await env.VIDEOS.resumeMultipartUpload(b.key, b.uploadId).complete(parts);
           if (obj.size > maxB) { await env.VIDEOS.delete(b.key); return json({ error: "file too large" }, 413, h); }
+          quotaCache = { at: 0, data: null };
           return json({ url: url.origin + "/files/" + b.key, size: obj.size }, 200, h);
         } catch (e) { return json({ error: "complete failed" }, 502, h); }
       }

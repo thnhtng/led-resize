@@ -46,6 +46,22 @@ Giới hạn mặc định (đổi trong `wrangler.toml`): `MAX_UPLOAD_MB=1024` 
 
 **EN.** Users only drop a video. The browser uploads it to **Cloudflare R2** through the Worker (32 MB parts) and the Kaggle kernel downloads it itself — no terminal commands, no Kaggle dataset upload. One-time setup: enable R2, create the bucket + 3-day lifecycle rule, set the shared `FILES_SECRET` in both the Worker and GitHub secrets (the repo is public, so the workflow input is readable by anyone; only the kernel holds the key), then `npx wrangler deploy`.
 
+## Hạn mức / Quotas
+
+**VI.** Trang có nút **📊 Hạn mức** hiển thị phần còn lại. Chạm **bất kỳ** mức nào là cả máy tạm khoá (không nhận video, không mở bảng cài đặt, không giặt) cho tới khi mức đó làm mới; Worker cũng từ chối ở phía máy chủ (HTTP 429), nên không lách được bằng cách gọi trực tiếp.
+
+| Mức | Mặc định | Đo từ | Làm mới |
+|---|---|---|---|
+| Kho video (`QUOTA_STORAGE_GB`) | 8 GB | tổng dung lượng thật trong R2 | khi video hết 3 ngày và bị xoá |
+| Giờ GPU Kaggle (`QUOTA_GPU_HOURS_WEEK`) | 30 giờ / 7 ngày | `docs/data/jobs.json` (mẻ AI, tính từ lúc gửi nên là ước tính thận trọng) | khi mẻ cũ nhất trôi khỏi cửa sổ 7 ngày |
+| Số mẻ giặt (`QUOTA_JOBS_PER_DAY`) | 20 / 24 giờ | `jobs.json` + mẻ vừa gửi | sau 24 giờ |
+| Mẻ giặt mỗi IP (`MAX_JOBS_PER_HOUR`) | 6 / giờ | bộ nhớ Worker (gần đúng) | sau 1 giờ |
+| Video tải lên mỗi IP (`MAX_UPLOADS_PER_HOUR`) | 10 / giờ | bộ nhớ Worker (gần đúng) | sau 1 giờ |
+
+Đổi giá trị trong `wrangler.toml` rồi `npx wrangler deploy`. `GET /quota` trả số liệu (cache 20 giây). Giờ GPU thật của Kaggle không đọc được qua API nên chỉ là ước tính từ lịch sử mẻ; hãy đặt `QUOTA_GPU_HOURS_WEEK` thấp hơn hạn mức Kaggle nếu bạn dùng GPU ở chỗ khác.
+
+**EN.** The page shows remaining quota (📊 button). When **any** limit is exhausted the whole machine locks until it refreshes; the Worker also refuses server-side (HTTP 429). Limits and their data sources are in the table above (all configurable in `wrangler.toml`). Kaggle's real GPU quota can't be read via API, so GPU hours are an estimate from the job history.
+
 ## Lưu ý bảo mật / Security notes
 
 - Video chỉ tải về được khi có `FILES_SECRET` (nằm trong secret của Worker/GitHub và notebook Kaggle riêng tư). Địa chỉ file có chìa khoá ngẫu nhiên 128 bit nhưng **không** được coi là bí mật.

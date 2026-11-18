@@ -17,7 +17,13 @@ const TMP = fs.mkdtempSync(path.join(os.tmpdir(), "size-washer-demo-"));
 const jobs = [];
 const ORIGIN = `http://127.0.0.1:${PORT}`;
 /* trạm điện THẬT (relay/worker.js) chạy cục bộ với R2 giả: tải lên từng phần, kernel tải về bằng khoá bí mật */
-const RELAY_ENV = { GH_TOKEN: "demo", GH_REPO: "demo/demo", ALLOWED_ORIGINS: ORIGIN, FILES_SECRET: "demo-files-secret", VIDEOS: fakeR2(), MAX_UPLOAD_MB: "512", MAX_UPLOADS_PER_HOUR: "50" };
+const RELAY_ENV = { GH_TOKEN: "demo", GH_REPO: "demo/demo", ALLOWED_ORIGINS: ORIGIN, FILES_SECRET: "demo-files-secret", VIDEOS: fakeR2(), MAX_UPLOAD_MB: "512",
+  MAX_UPLOADS_PER_HOUR: process.env.QUOTA_UPLOADS_PER_HOUR || "50", MAX_JOBS_PER_HOUR: process.env.QUOTA_JOBS_PER_HOUR || "50", QUOTA_JOBS_PER_DAY: process.env.QUOTA_JOBS_PER_DAY || "20",
+  QUOTA_STORAGE_GB: process.env.QUOTA_STORAGE_GB || "8", QUOTA_GPU_HOURS_WEEK: process.env.QUOTA_GPU_HOURS_WEEK || "30" };
+/* trạm thật đọc jobs.json qua GitHub API — trong demo trả danh sách mẻ giả */
+const realFetch = globalThis.fetch;
+globalThis.fetch = (u, init) => String(u).startsWith("https://api.github.com/repos/demo/demo/contents/docs/data/jobs.json")
+  ? Promise.resolve(new Response(JSON.stringify(jobs), { status: 200 })) : realFetch(u, init);
 function viaWorker(req, res, rest) {
   const chunks = []; req.on("data", c => chunks.push(c));
   req.on("end", async () => {
@@ -80,6 +86,7 @@ function file(req, res, fp) {
 http.createServer((req, res) => {
   const url = new URL(req.url, "http://x"), p = decodeURIComponent(url.pathname);
   if (p === "/config.json") return send(res, 200, JSON.stringify({ relay: `http://127.0.0.1:${PORT}/relay` }));
+  if (p === "/relay/quota") return viaWorker(req, res, "/quota");
   if (p.startsWith("/relay/upload/")) return viaWorker(req, res, p.slice("/relay".length) + url.search);
   if (p === "/relay/health") return send(res, 200, '{"ok":true}');
   if (p === "/relay/data/jobs" || p === "/data/jobs.json") return send(res, 200, JSON.stringify(jobs));
@@ -93,7 +100,11 @@ http.createServer((req, res) => {
         const v = sanitizeJob(JSON.parse(body.inputs.job), ORIGIN);
         if (v.error) return send(res, 400, JSON.stringify({ error: v.error }));
         console.log("  ➜ nhận mẻ giặt:", v.job.id, v.job.videos.join(","), v.job.sizes.map(s => s.w + "x" + s.h).join(","), v.job.engine + "/" + v.job.model);
-        checkUploads(v.job).then(() => { startJob(v.job); send(res, 204, ""); }); return;
+        worker.fetch(new Request(ORIGIN + "/quota", { headers: { Origin: ORIGIN } }), RELAY_ENV).then(async qr => {
+          const q = await qr.json();
+          if (q.locked) { console.log("  ⛔ hết hạn mức:", q.reason); return send(res, 429, JSON.stringify({ error: "quota", reason: q.reason, resetSec: q.resetSec })); }
+          await checkUploads(v.job); startJob(v.job); send(res, 204, "");
+        }); return;
       } catch (e) { return send(res, 400, JSON.stringify({ error: "invalid request" })); }
     });
     return;
