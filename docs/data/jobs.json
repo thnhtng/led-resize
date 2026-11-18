@@ -4,7 +4,7 @@
   "label": "real upload test (blur)",
   "submitted_at": "2026-11-18T06:16:40Z",
   "run_url": "https://github.com/thnhtng/led-resize/actions/runs/44250128058",
-  "status": "submitted",
+  "status": "done",
   "kernel": "phcthnhtng/led-resize-j20261118061626u1",
   "kernel_url": "https://www.kaggle.com/code/phcthnhtng/led-resize-j20261118061626u1",
   "engine": "blur",
@@ -25,7 +25,18 @@
   "gen_mpx": 0.5,
   "scale": 1,
   "test_seconds": 2,
-  "resume_from": ""
+  "resume_from": "",
+  "finished_at": "2026-11-18T06:33:57Z",
+  "output_cmd": "kaggle kernels output phcthnhtng/led-resize-j20261118061626u1 -p ~/Downloads/led_out",
+  "previews": [
+   {
+    "label": "real-upload-test_test",
+    "mp4": "data/previews/j20261118061626u1_1.mp4",
+    "jpg": "data/previews/j20261118061626u1_1.jpg",
+    "w": 960,
+    "h": 294
+   }
+  ]
  },
  {
   "id": "j20261118123920t1",
