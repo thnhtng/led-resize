@@ -309,6 +309,21 @@ canvas#pv{width:100%;height:116px;display:block;border-radius:10px}
 #pro .chip:hover{border-color:var(--blue)}
 .chips{display:flex;flex-wrap:wrap;gap:7px}
 
+.qdot{width:8px;height:8px;border-radius:50%;background:var(--mint);margin-left:7px;display:inline-block;vertical-align:middle;box-shadow:0 0 8px currentColor;color:var(--mint)}
+.qdot.warn{background:var(--amber);color:var(--amber)}.qdot.lock{background:var(--red);color:var(--red)}
+.qbox{position:fixed;right:var(--padr);top:calc(var(--hdr) + 2px);width:min(380px,calc(100vw - 24px));z-index:60;background:rgba(13,16,22,.98);border:1px solid var(--line);border-radius:18px;padding:14px 16px 12px;box-shadow:0 20px 50px rgba(0,0,0,.6);max-height:calc(100dvh - var(--hdr) - 14px);overflow:auto}
+.qbox h3{margin:0 0 2px;font-size:14px;display:flex;align-items:center;justify-content:space-between;gap:8px}.qbox h3 button{background:none;border:0;color:var(--mut);font-size:18px;cursor:pointer;padding:2px 6px;min-height:30px}
+.qbox .qsub{color:var(--mut);font-size:12px;margin:0 0 10px}
+.qm{margin:0 0 11px}.qm .qh{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;margin-bottom:5px}.qm .qh b{font-weight:600}.qm .qh span{color:var(--mut);text-align:right}
+.qbar{height:9px;border-radius:99px;background:var(--card2);box-shadow:inset 0 0 0 1px var(--line);overflow:hidden}.qbar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#3ad69a,var(--mint));transition:width .5s}
+.qm.warn .qbar i{background:linear-gradient(90deg,#e8a526,var(--amber))}.qm.lock .qbar i{background:linear-gradient(90deg,#e0485b,var(--red))}
+.qm .qf{display:flex;justify-content:space-between;gap:10px;font-size:11.5px;color:var(--mut);margin-top:4px}.qm.lock .qf{color:var(--red)}
+.qbox .qnote{border-top:1px solid var(--line);padding-top:9px;margin-top:2px;color:var(--mut);font-size:11.5px;line-height:1.45}
+.lockbn{position:fixed;left:0;right:0;margin:0 auto;width:max-content;top:calc(var(--hdr) + 10px);z-index:55;max-width:min(560px,calc(100vw - 24px));background:#ffe3e6;color:#5a1320;border-radius:14px;padding:10px 16px;font-size:13px;line-height:1.4;box-shadow:0 0 0 2px #7a1f2b,0 14px 30px rgba(0,0,0,.5);display:flex;gap:10px;align-items:center}
+.lockbn button{background:#7a1f2b;color:#fff;border:0;border-radius:9px;padding:6px 11px;font-size:12px;cursor:pointer;min-height:30px;white-space:nowrap}
+#btnQuota{position:relative}
+@media(max-width:430px){.qdot{position:absolute;top:4px;right:4px;margin:0;width:7px;height:7px}}
+@media(max-width:400px){.tools{gap:4px}.tbtn{padding:6px 7px}.brand .word{font-size:15px}.brand{gap:5px}}
 #toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + var(--sb));max-width:min(440px,calc(100vw - 28px));background:#fff;color:#0a1530;border-radius:12px;padding:10px 14px;display:none;z-index:130;font-size:12.5px;box-shadow:0 0 0 2px #1c2b4a,0 14px 30px rgba(0,0,0,.5)}
 #toast.show{display:block}#toast.bad{background:#ffe3e6;box-shadow:0 0 0 2px #7a1f2b,0 14px 30px rgba(0,0,0,.5)}#toast.good{background:#dcffee;box-shadow:0 0 0 2px #1d6b4a,0 14px 30px rgba(0,0,0,.5)}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
@@ -389,6 +404,7 @@ canvas#pv{width:100%;height:116px;display:block;border-radius:10px}
     <div class="tools">
       <label class="langwrap"><span class="sr" data-i18n="lang.label"></span><select id="langSel" data-i18n-attr="aria-label:lang.label"></select></label>
       <button class="tbtn" id="btnHist" aria-expanded="false" aria-controls="history" data-i18n-attr="title:hist.title">🧺 <span class="t" data-i18n="hist.btn"></span><span class="n" id="histN">0</span></button>
+      <button class="tbtn" id="btnQuota" hidden aria-expanded="false" aria-controls="quotaBox" data-i18n-attr="title:q.title">📊 <span class="t" data-i18n="q.btn"></span><span class="qdot" id="qDot" aria-hidden="true"></span></button>
       <button class="tbtn" id="btnSound" aria-pressed="false">🔇</button>
       <button class="tbtn power" id="btnPower" aria-pressed="false"><span class="pico" aria-hidden="true">⏻</span><span class="t" id="powerLbl"></span></button>
     </div>
@@ -565,6 +581,8 @@ canvas#pv{width:100%;height:116px;display:block;border-radius:10px}
     <pre id="jsonView" style="display:none;margin:10px 0 0;background:#000;border:1px solid var(--line);border-radius:8px;padding:8px;font-size:11px;overflow:auto;max-height:240px"></pre>
   </div>
 </section>
+<div id="quotaBox" class="qbox" role="dialog" aria-labelledby="qHead" hidden></div>
+<div id="lockBanner" class="lockbn" role="alert" hidden></div>
 <div id="toast" role="status"></div>
 
 <script type="module" src="app.js"></script>

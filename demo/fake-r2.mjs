@@ -11,7 +11,7 @@ export function fakeR2() {
         async complete(parts) {
           const bufs = parts.map(p => { const x = u.parts.get(p.partNumber); if (!x || x.etag !== p.etag) throw new Error("bad part"); return x.data; });
           const all = new Uint8Array(bufs.reduce((a, b) => a + b.length, 0)); let o = 0; for (const b of bufs) { all.set(b, o); o += b.length; }
-          objs.set(key, { data: all, httpMetadata: u.opt.httpMetadata }); return { size: all.length };
+          objs.set(key, { data: all, httpMetadata: u.opt.httpMetadata, uploaded: new Date() }); return { size: all.length };
         },
       };
     },
@@ -24,5 +24,6 @@ export function fakeR2() {
       return { ...base, body: o.data };
     },
     async delete(key) { objs.delete(key); },
+    async list({ prefix = "" } = {}) { return { objects: [...objs].filter(([k]) => k.startsWith(prefix)).map(([key, o]) => ({ key, size: o.data.length, uploaded: o.uploaded || new Date() })), truncated: false }; },
   };
 }
