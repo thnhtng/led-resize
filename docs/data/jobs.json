@@ -4,7 +4,7 @@
   "label": "TV.mp4 → 3784x774, 4128x1290",
   "submitted_at": "2026-11-18T13:03:33Z",
   "run_url": "https://github.com/thnhtng/led-resize/actions/runs/44309842192",
-  "status": "running",
+  "status": "cancelled",
   "kernel": "phcthnhtng/led-resize-j20261118-200321j9",
   "kernel_url": "https://www.kaggle.com/code/phcthnhtng/led-resize-j20261118-200321j9",
   "engine": "wan",
@@ -30,7 +30,8 @@
   "gen_mpx": 0.5,
   "scale": 1,
   "test_seconds": 0,
-  "resume_from": ""
+  "resume_from": "",
+  "finished_at": "2026-11-19T00:20:33Z"
  },
  {
   "id": "j20261118-1415429p",
