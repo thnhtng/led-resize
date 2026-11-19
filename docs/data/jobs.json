@@ -1,5 +1,33 @@
 [
  {
+  "id": "j20261119-2012301t",
+  "label": "TV.mp4 → 3784x774",
+  "submitted_at": "2026-11-19T13:12:43Z",
+  "run_url": "https://github.com/thnhtng/led-resize/actions/runs/44531174177",
+  "status": "submitted",
+  "kernel": "phcthnhtng/led-resize-j20261119-2012301t",
+  "kernel_url": "https://www.kaggle.com/code/phcthnhtng/led-resize-j20261119-2012301t",
+  "engine": "wan",
+  "model": "1.3b",
+  "accelerator": "NvidiaTeslaT4",
+  "sizes": [
+   {
+    "name": "cafeteria",
+    "w": 3784,
+    "h": 774
+   }
+  ],
+  "videos": [
+   "TV.mp4"
+  ],
+  "steps": 25,
+  "stride": 1,
+  "gen_mpx": 0.5,
+  "scale": 1,
+  "test_seconds": 0,
+  "resume_from": ""
+ },
+ {
   "id": "j20261119-075954mg",
   "label": "TV.mp4 → 3784x774",
   "submitted_at": "2026-11-19T01:00:07Z",
